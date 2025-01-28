@@ -1,0 +1,47 @@
+<%- contentFor('body') %>
+
+<div class="content-body default-height">
+  <div class="container-fluid">
+    <div class="row justify-content-center mt-5">
+      <div class="col-md-8">
+        <div class="card shadow-lg">
+          <div class="card-body text-center">
+            <h2 class="text-success"><i class="fas fa-check-circle"></i> Zahlung Erfolgreich</h2>
+            <p class="mt-3">Vielen Dank für Ihre Zahlung, <strong><%= login_user %></strong>.</p>
+            <p>Ihre Bestellung wurde erfolgreich verarbeitet.</p>
+            
+            <div class="mt-4">
+              <h5 class="text-black-50">Details Ihrer Zahlung:</h5>
+              <table class="table table-bordered mt-3">
+                <tbody>
+                  <tr>
+                    <th>Bestellnummer:</th>
+                    <td><%= orderNumber %></td>
+                  </tr>
+                  <tr>
+                    <th>Betrag:</th>
+                    <td>€<%= amount.toFixed(2) %></td>
+                  </tr>
+                  <tr>
+                    <th>Status:</th>
+                    <td class="text-success">Erfolgreich</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="mt-4">
+              <a href="/" class="btn btn-primary">Zurück zum Shop</a>
+              <a href="/dashboard" class="btn btn-secondary">Zum Dashboard</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<%- contentFor('script') %>
+<script src="assets/vendor/star-rating/jquery.star-rating-svg.js"></script>
+<script src="assets/js/custom.min.js"></script>
+<script src="assets/js/dlabnav-init.js"></script>
+<script src="assets/js/demo.js"></script>

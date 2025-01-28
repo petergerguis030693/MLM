@@ -1,0 +1,44 @@
+
+<%- contentFor('body') %>
+  <link href="/assets/vendor/owl-carousel/owl.carousel.css" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/vendor/nouislider/nouislider.min.css">
+<div class="content-body default-height">
+  <div class="container-fluid">
+    <h3>Auszahlung beantragen</h3>
+    <div>
+      <p>Verfügbare Provision: <strong><%= totalProvision %> €</strong></p>
+      <form id="payout-form">
+        <input type="hidden" name="partnerId" value="<%= userId %>"> <!-- Partner-ID -->
+        <input type="hidden" name="amount" value="<%= totalProvision %>"> <!-- Dynamischer Betrag -->
+        <button type="submit" class="btn btn-primary">Auszahlung beantragen</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<%- contentFor('script') %>
+<script>
+  document.querySelector('#payout-form').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const formData = new FormData(event.target);
+    const data = Object.fromEntries(formData.entries());
+
+    try {
+      const response = await fetch('/payout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+
+      const result = await response.json();
+      alert(result.message);
+    } catch (err) {
+      console.error('Fehler beim Beantragen der Auszahlung:', err);
+      alert('Fehler beim Beantragen der Auszahlung!');
+    }
+  });
+</script>
+<script src="assets/vendor/owl-carousel/owl.carousel.js"></script>
+<script src="assets/js/custom.min.js"></script>
+<script src="assets/js/dlabnav-init.js"></script>
+<script src="assets/js/demo.js"></script>

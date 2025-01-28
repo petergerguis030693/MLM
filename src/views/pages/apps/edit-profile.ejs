@@ -1,0 +1,89 @@
+<%- contentFor('css') %>
+<link href="assets/vendor/bootstrap-datepicker-master/css/bootstrap-datepicker.min.css" rel="stylesheet">
+
+<%- contentFor('body') %>
+<div class="content-body default-height">
+  <div class="container-fluid">
+    <!-- Row -->
+    <div class="row">
+      <div class="col-xl-9 col-lg-8">
+        <div class="card profile-card card-bx m-b30">
+          <div class="card-header">
+            <h6 class="title">Firmen-Profil</h6>
+          </div>
+          <!-- Firmenprofil Formular -->
+          <form action="/edit-profile" method="POST" class="profile-form" >
+            <div class="card-body">
+              <div class="row">
+                <!-- Firmenname -->
+                <div class="col-sm-6 m-b30">
+                  <label class="form-label">Firmenname</label>
+                  <input type="text" name="company_name" class="form-control" placeholder="Firmenname" value="<%= company_name || '' %>">
+                </div>
+                <!-- ATU-Nummer -->
+                <div class="col-sm-6 m-b30">
+                  <label class="form-label">ATU-Nummer</label>
+                  <input type="text" name="vat_number" class="form-control" placeholder="ATU-Nummer" value="<%= vat_number || '' %>">
+                </div>
+                <!-- Firmen-Nummer -->
+                <div class="col-sm-6 m-b30">
+                  <label class="form-label">Firmen-Nummer</label>
+                  <input type="text" name="company_number" class="form-control" placeholder="Firmen-Nummer" value="<%= company_number || '' %>">
+                </div>
+                <!-- Branche -->
+                <div class="col-sm-6 m-b30">
+                  <label class="form-label">Branche</label>
+                  <input type="text" name="industry" class="form-control" placeholder="Branche" value="<%= industry || '' %>">
+                </div>
+                <!-- Service -->
+                <div class="col-sm-6 m-b30">
+                  <label class="form-label">Ihr Service</label>
+                  <input type="text" name="service" class="form-control" placeholder="Service" value="<%= service || '' %>">
+                </div>
+                <!-- Gründungsdatum -->
+                <div class="col-sm-6 m-b30">
+                  <label class="form-label">Gründungsdatum</label>
+                  <input type="date" name="founding_date" class="form-control mb-3 mb-xl-0" value="<%= founding_date || '' %>">
+                </div>
+                <!-- Telefonnummer -->
+                <div class="col-sm-6 m-b30">
+                  <label class="form-label">Firmen-Telefonnummer</label>
+                  <input type="text" name="phone_number" class="form-control" placeholder="Telefonnummer" value="<%= phone_number || '' %>">
+                </div>
+                <!-- Email-Adresse -->
+                <div class="col-sm-6 m-b30">
+                  <label class="form-label">Firmen-Email-Adresse</label>
+                  <input type="email" name="email" class="form-control" placeholder="E-Mail-Adresse" value="<%= email || '' %>">
+                </div>
+                <!-- Adresse -->
+                <div class="col-sm-6 m-b30">
+                  <label class="form-label">Firmenadresse</label>
+                  <input type="text" name="address" class="form-control" placeholder="Adresse" value="<%= address || '' %>">
+                </div>
+                <!-- Land -->
+                <div class="col-sm-6 m-b30">
+                  <label class="form-label">Land</label>
+                  <input type="text" name="country" class="form-control" placeholder="Land" value="<%= country || '' %>">
+                </div>
+                <!-- PLZ -->
+                <div class="col-sm-6 m-b30">
+                  <label class="form-label">PLZ & Ort</label>
+                  <input type="text" name="postal_code" class="form-control" placeholder="PLZ & Ort" value="<%= postal_code || '' %>">
+                </div>
+              </div>
+            </div>
+            <div class="card-footer">
+              <button type="submit" class="btn btn-primary">Änderung Vornehmen</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<%- contentFor('script') %>
+<script src="assets/vendor/bootstrap-datepicker-master/js/bootstrap-datepicker.min.js"></script>
+<script src="assets/js/custom.min.js"></script>
+<script src="assets/js/dlabnav-init.js"></script>
+<script src="assets/js/demo.js"></script>

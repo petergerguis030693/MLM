@@ -1,0 +1,65 @@
+
+<%- contentFor('body') %>
+  <link href="/assets/vendor/owl-carousel/owl.carousel.css" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/vendor/nouislider/nouislider.min.css">
+
+<div class="content-body default-height">
+  <div class="container-fluid">
+    <h3>Bankdaten eingeben</h3>
+    <form id="bank-details-form">
+      <input type="hidden" name="partnerId" value="<%= userId %>">
+
+      <label for="iban">IBAN</label>
+      <input type="text" id="iban" name="iban" class="form-control" required>
+
+      <label for="bic">BIC</label>
+      <input type="text" id="bic" name="bic" class="form-control" required>
+
+      <h4>Kartendaten (optional)</h4>
+      <label for="cardType">Kartentyp</label>
+      <select id="cardType" name="cardType" class="form-control">
+        <option value="debit">Debit</option>
+        <option value="credit">Credit</option>
+        <option value="other">Sonstiges</option>
+      </select>
+
+      <label for="cardNumber">Kartennummer</label>
+      <input type="text" id="cardNumber" name="cardNumber" maxlength="16" class="form-control" required>
+
+      <label for="expirationDate">Ablaufdatum</label>
+      <input type="month" id="expirationDate" name="expirationDate" class="form-control" required>
+
+      <label for="cardHolderName">Karteninhaber</label>
+      <input type="text" id="cardHolderName" name="cardHolderName" class="form-control" required>
+
+      <button type="submit" class="btn btn-primary mt-3">Speichern</button>
+    </form>
+  </div>
+</div>
+
+<%- contentFor('script') %>
+  <script>
+    document.querySelector('#bank-details-form').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const formData = new FormData(event.target);
+      const data = Object.fromEntries(formData.entries());
+
+      try {
+        const response = await fetch('/add-bank-details', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
+        });
+
+        const result = await response.json();
+        alert(result.message);
+      } catch (err) {
+        console.error('Fehler beim Speichern der Bankdaten:', err);
+        alert('Fehler beim Speichern der Bankdaten!');
+      }
+    });
+  </script>
+  <script src="/assets/vendor/owl-carousel/owl.carousel.js"></script>
+  <script src="/assets/js/custom.min.js"></script>
+  <script src="/assets/js/dlabnav-init.js"></script>
+  <script src="/assets/js/demo.js"></script>

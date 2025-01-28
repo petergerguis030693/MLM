@@ -1,0 +1,175 @@
+<%- contentFor('css') %>
+<link rel="stylesheet" type="text/css" href="/assets/vendor/star-rating/star-rating-svg.css">
+<style>
+  .gallery-item {
+    position: relative;
+    display: inline-block;
+    margin: 10px;
+  }
+
+  .gallery-item img {
+    max-width: 100px;
+    height: auto;
+    border-radius: 5px;
+  }
+
+  .gallery-order {
+    position: absolute;
+    top: 5px;
+    left: 5px;
+    background: rgba(0, 0, 0, 0.5);
+    color: #fff;
+    padding: 2px 5px;
+    border-radius: 3px;
+    font-size: 12px;
+  }
+</style>
+
+<%- contentFor('body') %>
+<div class="content-body default-height">
+  <div class="container-fluid">
+    <div class="row page-titles">
+      <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="/shop">Shop</a></li>
+        <li class="breadcrumb-item active"><a href="javascript:void(0)">Produkt bearbeiten</a></li>
+      </ol>
+    </div>
+
+    <form action="/product-edit/<%= product.product_id %>" method="POST" enctype="multipart/form-data">
+      <div class="card">
+        <div class="card-body">
+          <div class="row">
+            <div class="col-md-6">
+              <div class="form-group">
+                <label for="productTitle">Titel</label>
+                <input type="text" id="productTitle" name="title" class="form-control"
+                  value="<%= product.product_title %>" required>
+              </div>
+              <div class="form-group mt-3">
+                <label for="productPrice">Preis</label>
+                <input type="number" step="0.01" id="productPrice" name="price" class="form-control"
+                  value="<%= product.price %>" required>
+              </div>
+              <div class="form-group mt-3">
+                <label for="productCategory">Kategorie</label>
+                <select id="productCategory" name="category" class="form-control" required>
+                  <% categories.forEach(category => { %>
+                    <option value="<%= category.id %>" <%= category.id === product.category_id ? 'selected' : '' %>>
+                      <%= category.name %>
+                    </option>
+                  <% }); %>
+                </select>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="form-group">
+                <label for="productImage">Titelbild</label>
+                <input type="file" id="productImage" name="image" class="form-control">
+                <img src="<%= product.title_image %>" alt="Titelbild" class="img-thumbnail mt-3"
+                  style="max-width: 200px;">
+              </div>
+
+              <div id="gallery" class="gallery-thumbnails">
+                <% if (product.gallery_images.length > 0) { %>
+                  <% product.gallery_images.forEach((bild) => { %>
+                    <div class="gallery-item" data-id="<%= bild.bilder_id %>" data-value="<%= bild.sort_order %>" draggable="true">
+                      <span class="gallery-order"><%= bild.sort_order %></span>
+                      <img src="<%= bild.bild_url %>" alt="Galeriebild <%= bild.sort_order %>" class="img-thumbnail">
+                    </div>
+                  <% }); %>
+                <% } else { %>
+                  <p>Keine Galeriebilder verfügbar.</p>
+                <% } %>
+              </div>
+           
+                                 
+              <button id="saveOrderBtn" type="button" class="btn btn-primary mt-3">Reihenfolge speichern</button>
+            </div>
+            <div class="col-12 mt-3">
+              <div class="form-group">
+                <label for="productDescription">Beschreibung</label>
+                <textarea id="productDescription" name="description" rows="5" class="form-control"
+                  required><%= product.description %></textarea>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="card-footer text-end">
+          <button type="submit" class="btn btn-primary">Speichern</button>
+          <a href="/product-detail/<%= product.product_id %>" class="btn btn-secondary">Abbrechen</a>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<%- contentFor('script') %>
+<script src="assets/vendor/star-rating/jquery.star-rating-svg.js"></script>
+<script src="assets/js/custom.min.js"></script>
+<script src="assets/js/dlabnav-init.js"></script>
+<script src="assets/js/demo.js"></script>
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+  const gallery = document.getElementById("gallery");
+  const saveOrderBtn = document.getElementById("saveOrderBtn");
+
+  let draggedItem = null;
+
+  gallery.addEventListener("dragstart", (e) => {
+    if (e.target.classList.contains("gallery-item")) {
+      draggedItem = e.target;
+      e.dataTransfer.effectAllowed = "move";
+    }
+  });
+
+  gallery.addEventListener("dragover", (e) => {
+    e.preventDefault();
+    const overItem = e.target.closest(".gallery-item");
+    if (overItem && draggedItem !== overItem) {
+      gallery.insertBefore(draggedItem, overItem.nextSibling);
+      updateOrder();
+    }
+  });
+
+  gallery.addEventListener("dragend", () => {
+    draggedItem = null;
+  });
+
+  // Reihenfolge im DOM aktualisieren
+  function updateOrder() {
+    const items = Array.from(gallery.querySelectorAll(".gallery-item"));
+    items.forEach((item, index) => {
+      item.dataset.value = index + 1; // Neues sort_order
+      item.querySelector(".gallery-order").innerText = index + 1; // Sortierungsanzeige aktualisieren
+    });
+  }
+
+  saveOrderBtn.addEventListener("click", () => {
+    const items = Array.from(gallery.querySelectorAll(".gallery-item"));
+    const order = items.map((item) => ({
+      id: item.dataset.id, // Bilder-ID
+      sort_order: item.dataset.value, // Neue Sortierung
+    }));
+
+    fetch("/gallery/update-order", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        productId: "<%= product.product_id %>",
+        galleryOrder: order,
+      }),
+    })
+      .then((response) => {
+        if (response.ok) {
+          alert("Reihenfolge erfolgreich gespeichert!");
+        } else {
+          throw new Error("Fehler beim Speichern der Reihenfolge.");
+        }
+      })
+      .catch((error) => {
+        console.error(error);
+        alert("Ein Fehler ist aufgetreten.");
+      });
+  });
+});
+</script>

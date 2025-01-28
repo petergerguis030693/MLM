@@ -1,0 +1,46 @@
+<%- contentFor('body') %>
+<div class="content-body">
+  <div class="container-fluid">
+    <h3>Zahlung erfolgreich</h3>
+    <style>
+      .success-message {
+        margin: 20px 0;
+        padding: 20px;
+        border: 1px solid #28a745;
+        border-radius: 5px;
+        background: #d4edda;
+        color: #155724;
+        text-align: center;
+      }
+      .success-message h4 {
+        margin-bottom: 15px;
+        font-weight: bold;
+      }
+      .btn-dashboard {
+        margin-top: 20px;
+        display: inline-block;
+        padding: 10px 20px;
+        background: #007bff;
+        color: #fff;
+        border: none;
+        border-radius: 5px;
+        text-decoration: none;
+      }
+      .btn-dashboard:hover {
+        background: #0056b3;
+        color: #fff;
+      }
+    </style>
+
+    <div class="success-message">
+      <h4>Vielen Dank für Ihre Zahlung!</h4>
+      <p>Ihre Zahlung wurde erfolgreich verarbeitet. Sie haben jetzt vollen Zugriff auf Ihr Partnerkonto.</p>
+      <a href="/dashboard" class="btn-dashboard">Zum Dashboard</a>
+    </div>
+  </div>
+</div>
+
+<%- contentFor('script') %>
+<script src="/assets/js/custom.min.js"></script>
+<script src="/assets/js/dlabnav-init.js"></script>
+<script src="/assets/js/demo.js"></script>

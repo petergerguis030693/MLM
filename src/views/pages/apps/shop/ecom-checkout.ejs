@@ -1,0 +1,61 @@
+<%- contentFor('body') %>
+  <div class="content-body default-height">
+    <div class="container-fluid">
+      <div class="row">
+        <div class="col-md-4">
+          <div class="card">
+            <img src="<%= product.title_image %>" class="card-img-top" alt="<%= product.product_title %>">
+            <div class="card-body">
+              <h5 class="card-title">
+                <%= product.product_title %>
+              </h5>
+              <p class="card-text">
+                <%= product.description %>
+              </p>
+              <h3>€<%= product.price %></h3>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-8">
+          <div class="card">
+            <div class="card-body">
+              <button id="checkout-button" class="btn btn-primary btn-block">
+                Jetzt für <%= product.price %>€ bezahlen
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<%- contentFor('script') %>
+  <script>
+    document.getElementById('checkout-button').addEventListener('click', async () => {
+      try {
+        const response = await fetch('/create-checkout-session', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            productId: <%= product.id %>, // Produkt-ID an Backend senden
+            partnerId: '<%= partnerId || null %>', // Optional: Partner-ID
+          }),
+        });
+
+        const { url } = await response.json(); // URL der Stripe-Checkout-Session abrufen
+        if (url) {
+          window.location.href = url; // Weiterleitung zur Stripe-Checkout-Seite
+        } else {
+          alert('Fehler: Checkout-Session konnte nicht erstellt werden.');
+        }
+      } catch (error) {
+        console.error('Fehler beim Erstellen der Checkout-Session:', error);
+        alert('Ein Fehler ist aufgetreten. Bitte versuchen Sie es erneut.');
+      }
+    });
+  </script>
+  <script src="/assets/js/custom.min.js"></script>
+  <script src="/assets/js/dlabnav-init.js"></script>
+  <script src="/assets/js/demo.js"></script>

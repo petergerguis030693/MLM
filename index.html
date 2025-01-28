@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Herando - Kaufen & Support</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .herando-card {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 30px;
+            text-align: center;
+            max-width: 600px;
+            margin: auto;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .herando-card .icon {
+            font-size: 40px;
+            color: #6c757d;
+        }
+
+        .herando-card h3 {
+            font-weight: bold;
+            margin-top: 15px;
+        }
+
+        .herando-card p {
+            color: #6c757d;
+        }
+
+        .herando-btn {
+            border: 1px solid #d39e00;
+            color: #d39e00;
+            padding: 10px 20px;
+            border-radius: 5px;
+            text-decoration: none;
+            display: inline-block;
+            margin-top: 15px;
+            font-weight: bold;
+            transition: 0.3s;
+        }
+
+        .herando-btn:hover {
+            background: #d39e00;
+            color: white;
+        }
+
+        /* Anpassung für das Support-Modul */
+        .support-card .contact-info {
+            font-size: 18px;
+            font-weight: bold;
+            color: #000;
+        }
+
+        .support-card .email {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            color: #d39e00;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+
+        .support-card .email i {
+            font-size: 18px;
+        }
+    </style>
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css">
+</head>
+
+<body>
+    <div class="container mt-5">
+        <div class="row">
+            <!-- Herando Kaufen & Verkaufen -->
+            <div class="col-md-6">
+                <div class="herando-card">
+                    <div class="icon">
+                        <i class="bi bi-globe"></i>
+                    </div>
+                    <h3>Bei Herando kaufen und verkaufen</h3>
+                    <p>Sie möchten luxuriöse Immobilien, Autos, Uhren oder Boote kaufen oder verkaufen? 
+                        Dann sind Sie bei uns richtig! Bei Herando finden Sie erlesene Luxusgüter aus aller Welt.</p>
+                    <a href="/vertrieb.html" class="herando-btn">JETZT VERKAUFEN</a>
+                </div>
+            </div>
+
+            <!-- Support-Modul -->
+            <div class="col-md-6">
+                <div class="herando-card support-card">
+                    <div class="icon">
+                        <i class="bi bi-chat-dots"></i>
+                    </div>
+                    <h3>Sie benötigen Hilfe?</h3>
+                    <p>Kontaktieren Sie unseren Kundenservice</p>
+                    <p class="contact-info">Telefon <span style="color: #000;">+420 228 884 177</span></p>
+                    <div class="email">
+                        <i class="bi bi-envelope"></i>
+                        <span>Kontakt per E-Mail</span>
+                    </div>
+                    <a href="#" class="herando-btn">KONTAKT</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+
+</html>

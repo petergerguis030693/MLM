@@ -1,0 +1,37 @@
+{
+  "name": "fillow",
+  "version": "1.0.0",
+  "description": "fillow admin dashboard",
+  "main": "index.js",
+  "scripts": {
+    "test": "npm start",
+    "start": "nodemon index.js",
+    "sass": "sass --watch public/assets/scss/main.scss:public/assets/css/style.css"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^1.7.9",
+    "bcrypt": "^5.1.1",
+    "body-parser": "^1.20.3",
+    "cookie-parser": "^1.4.6",
+    "ejs": "^3.1.10",
+    "express": "^4.21.0",
+    "express-ejs-layouts": "^2.5.1",
+    "express-fileupload": "^1.5.1",
+    "express-group-routes": "^1.1.0",
+    "express-session": "^1.18.1",
+    "express-validator": "^7.2.0",
+    "multer": "^1.4.5-lts.1",
+    "mysql2": "^3.11.3",
+    "nodemailer": "^6.10.0",
+    "nodemon": "^3.1.7",
+    "playwright": "^1.49.1",
+    "puppeteer": "^23.10.4",
+    "puppeteer-extra": "^3.3.6",
+    "puppeteer-extra-plugin-stealth": "^2.11.2",
+    "sass": "^1.80.6",
+    "socket.io": "^4.8.1",
+    "stripe": "^17.5.0"
+  }
+}

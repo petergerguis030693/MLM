@@ -1,0 +1,28 @@
+<%- contentFor('css') %>
+  <!-- Form step -->
+  <link href="vendor/jquery-smartwizard/dist/css/smart_wizard.min.css" rel="stylesheet">
+<%- contentFor('body') %>
+<div class="content-body default-height">
+  <div class="container-fluid">
+    <!-- breadcrumb -->
+    <%- include('../elements/breadcrumb', {breadcrumb: 'Form' }) %>
+    <!-- row -->
+     <div class="row">
+          <div class="col-xl-12 col-xxl-12">
+              <div class="card">
+                  <div class="card-header">
+                      <h4 class="card-title">Form CkEditor</h4>
+                  </div>
+                  <div class="card-body custom-ekeditor">
+                  <div id="ckeditor"></div>
+                  </div>
+              </div>
+          </div>
+      </div>
+  </div>
+</div>
+<%- contentFor('script') %>
+<script src="vendor/ckeditor/ckeditor.js"></script>
+<script src="js/custom.min.js"></script>
+<script src="js/dlabnav-init.js"></script>
+<script src="js/demo.js"></script>

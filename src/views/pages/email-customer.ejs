@@ -1,0 +1,57 @@
+<%- contentFor('css') %>
+<link href="/assets/vendor/owl-carousel/owl.carousel.css" rel="stylesheet">
+<link rel="stylesheet" href="/assets/vendor/nouislider/nouislider.min.css">
+
+<div class="content-body default-height">
+    <div class="container-fluid">
+        <h3>Kunden-E-Mail senden</h3>
+        <form id="emailForm">
+            <div class="form-group">
+                <label for="email">Kunden-E-Mail-Adresse</label>
+                <input type="email" class="form-control" id="email" name="email" required placeholder="E-Mail-Adresse eingeben">
+            </div>
+            <div class="form-group" style="margin-top: 20px; margin-bottom: 20px;">
+                <label for="partnerId">Partner-ID: <%= userId %></label>
+                <input type="hidden" id="partnerId" name="partnerId" value="<%= userId %>">
+            </div>
+            <button type="submit" class="btn btn-primary">E-Mail senden</button>
+        </form>
+        <div id="message" class="mt-3"></div>
+    </div>
+</div>
+
+<%- contentFor('script') %>
+<script>
+    document.getElementById('emailForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const email = document.getElementById('email').value;
+        const partnerId = document.getElementById('partnerId').value;
+
+        try {
+            const response = await fetch('/send-customer-link', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, partnerId }),
+            });
+
+            const result = await response.json();
+            const messageDiv = document.getElementById('message');
+
+            if (response.ok) {
+                messageDiv.innerHTML = `<div class="alert alert-success">${result.message}</div>`;
+            } else {
+                messageDiv.innerHTML = `<div class="alert alert-danger">${result.message}</div>`;
+            }
+        } catch (error) {
+            console.error('Fehler beim Senden der E-Mail:', error);
+            document.getElementById('message').innerHTML = `
+                <div class="alert alert-danger">Fehler beim Senden der E-Mail. Bitte versuchen Sie es erneut.</div>
+            `;
+        }
+    });
+</script>
+<script src="assets/vendor/owl-carousel/owl.carousel.js"></script>
+<script src="assets/js/custom.min.js"></script>
+<script src="assets/js/dlabnav-init.js"></script>
+<script src="assets/js/demo.js"></script>

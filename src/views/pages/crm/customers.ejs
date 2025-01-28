@@ -1,0 +1,147 @@
+<%- contentFor('css') %>
+  <link href="assets/vendor/owl-carousel/owl.carousel.css" rel="stylesheet">
+  <link rel="stylesheet" href="assets/vendor/nouislider/nouislider.min.css">
+  <%- contentFor('body') %>
+  <div class="content-body default-height">
+    <div class="container-fluid">
+      <h3>Kundenverwaltung</h3>
+      <a href="#" class="btn btn-primary mb-3" data-bs-toggle="modal" data-bs-target="#addCustomerModal">Neuen Kunden hinzufügen</a>
+  
+      <!-- Kundenübersicht -->
+      <table class="table table-bordered">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Name</th>
+            <th>E-Mail</th>
+            <th>Telefon</th>
+            <th>Adresse</th>
+            <th>Status</th>
+            <th>Aktionen</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% customers.forEach(customer => { %>
+            <tr>
+              <td><%= customer.id %></td>
+              <td><%= customer.name %></td>
+              <td><%= customer.email %></td>
+              <td><%= customer.phone || 'Nicht angegeben' %></td>
+              <td><%= customer.address || 'Nicht angegeben' %></td>
+              <td><%= customer.status %></td>
+              <td>
+                <!-- Bearbeiten-Button -->
+                <button class="btn btn-warning btn-sm" data-bs-toggle="modal" data-bs-target="#editCustomerModal<%= customer.id %>">Bearbeiten</button>
+                <!-- Löschen-Button -->
+                <form action="/customers/delete/<%= customer.id %>" method="POST" style="display:inline;">
+                  <button type="submit" class="btn btn-danger btn-sm">Löschen</button>
+                </form>
+              </td>
+            </tr>
+  
+            <!-- Bearbeiten-Modale -->
+            <div class="modal fade" id="editCustomerModal<%= customer.id %>" tabindex="-1" aria-labelledby="editCustomerModalLabel<%= customer.id %>" aria-hidden="true">
+              <div class="modal-dialog">
+                <div class="modal-content">
+                  <form action="/customers/edit/<%= customer.id %>" method="POST">
+                    <div class="modal-header">
+                      <h5 class="modal-title" id="editCustomerModalLabel<%= customer.id %>">Kunden bearbeiten</h5>
+                      <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+                    </div>
+                    <div class="modal-body">
+                      <div class="mb-3">
+                        <label for="name">Name:</label>
+                        <input type="text" name="name" class="form-control" value="<%= customer.name %>" required>
+                      </div>
+                      <div class="mb-3">
+                        <label for="email">E-Mail:</label>
+                        <input type="email" name="email" class="form-control" value="<%= customer.email %>" required>
+                      </div>
+                      <div class="mb-3">
+                        <label for="phone">Telefon:</label>
+                        <input type="text" name="phone" class="form-control" value="<%= customer.phone || '' %>">
+                      </div>
+                      <div class="mb-3">
+                        <label for="address">Adresse:</label>
+                        <textarea name="address" class="form-control"><%= customer.address || '' %></textarea>
+                      </div>
+                      <div class="mb-3">
+                        <label for="status">Status:</label>
+                        <select name="status" class="form-select">
+                          <option value="lead" <%= customer.status === 'lead' ? 'selected' : '' %>>Lead</option>
+                          <option value="customer" <%= customer.status === 'customer' ? 'selected' : '' %>>Kunde</option>
+                          <option value="inactive" <%= customer.status === 'inactive' ? 'selected' : '' %>>Inaktiv</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div class="modal-footer">
+                      <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                      <button type="submit" class="btn btn-primary">Speichern</button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </div>
+          <% }); %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  
+  <!-- Modal für neuen Kunden -->
+  <div class="modal fade" id="addCustomerModal" tabindex="-1" aria-labelledby="addCustomerModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <form action="/customers/add" method="POST">
+          <div class="modal-header">
+            <h5 class="modal-title" id="addCustomerModalLabel">Neuen Kunden hinzufügen</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+          </div>
+          <div class="modal-body">
+            <div class="mb-3">
+              <label for="name">Name:</label>
+              <input type="text" name="name" class="form-control" required>
+            </div>
+            <div class="mb-3">
+              <label for="email">E-Mail:</label>
+              <input type="email" name="email" class="form-control" required>
+            </div>
+            <div class="mb-3">
+              <label for="phone">Telefon:</label>
+              <input type="text" name="phone" class="form-control">
+            </div>
+            <div class="mb-3">
+              <label for="address">Adresse:</label>
+              <textarea name="address" class="form-control"></textarea>
+            </div>
+            <div class="mb-3">
+              <label for="status">Status:</label>
+              <select name="status" class="form-select">
+                <option value="lead">Lead</option>
+                <option value="customer">Kunde</option>
+                <option value="inactive">Inaktiv</option>
+              </select>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+            <button type="submit" class="btn btn-primary">Hinzufügen</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+  
+<%- contentFor('script') %>
+<script>
+  // Modal für Hinzufügen schließen
+  window.onclick = function(event) {
+    const modal = document.getElementById('addCustomerModal');
+    if (event.target == modal) {
+      modal.style.display = "none";
+    }
+  };
+</script>
+<script src="/assets/js/custom.min.js"></script>
+<script src="/assets/js/dlabnav-init.js"></script>
+<script src="/assets/js/demo.js"></script>

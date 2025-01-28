@@ -1,0 +1,88 @@
+<%- contentFor('body') %>
+<link href="/assets/vendor/owl-carousel/owl.carousel.css" rel="stylesheet">
+<link rel="stylesheet" href="/assets/vendor/nouislider/nouislider.min.css">
+
+<div class="content-body default-height">
+  <div class="container-fluid">
+    <h3>Datenüberprüfung</h3>
+    <style>
+      .table-responsive {
+        margin-top: 20px;
+      }
+      .document-preview {
+        width: 100px;
+        height: 100px;
+        object-fit: cover;
+        border: 1px solid #ccc;
+      }
+      textarea {
+        width: 100%;
+        resize: none;
+      }
+      .action-buttons {
+        display: flex;
+        gap: 5px;
+      }
+      th, td {
+        vertical-align: middle !important;
+      }
+    </style>
+
+<div class="table-responsive">
+  <table class="table table-bordered">
+    <thead>
+      <tr>
+        <th>Partner-ID</th>
+        <th>Name</th>
+        <th>E-Mail</th>
+        <th>Land</th>
+        <th>Erstellt am</th>
+        <th>Dokument</th>
+        <th>Typ</th>
+        <th>Status</th>
+        <th>Aktionen</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% partners.forEach(partner => { %>
+        <% partner.documents.forEach(doc => { %>
+          <tr>
+            <td><%= partner.id %></td>
+            <td><%= partner.name %></td>
+            <td><%= partner.email %></td>
+            <td><%= partner.country || 'Nicht angegeben' %></td>
+            <td><%= new Date(partner.created_at).toLocaleString() %></td>
+            <td>
+              <% if (doc.file_path.endsWith('.pdf')) { %>
+                <a href="<%= doc.file_path %>" target="_blank">PDF anzeigen</a>
+              <% } else { %>
+                <img class="document-preview" src="<%= doc.file_path %>" alt="Dokument">
+              <% } %>
+            </td>
+            <td><%= doc.document_type %></td>
+            <td><%= doc.status || 'Ausstehend' %></td>
+            <td>
+              <form action="/documents/action" method="POST">
+                <input type="hidden" name="document_id" value="<%= doc.id %>">
+                <div class="action-buttons">
+                  <button type="submit" name="action" value="approve" class="btn btn-success btn-sm">Genehmigen</button>
+                  <button type="submit" name="action" value="reject" class="btn btn-danger btn-sm">Ablehnen</button>
+                </div>
+                <textarea name="rejection_reason" placeholder="Grund für Ablehnung"></textarea>
+              </form>
+            </td>
+          </tr>
+        <% }); %>
+      <% }); %>
+    </tbody>
+  </table>
+</div>
+
+  </div>
+</div>
+
+<%- contentFor('script') %>
+<script src="/assets/vendor/owl-carousel/owl.carousel.js"></script>
+<script src="/assets/js/custom.min.js"></script>
+<script src="/assets/js/dlabnav-init.js"></script>
+<script src="/assets/js/demo.js"></script>

@@ -1,0 +1,541 @@
+<%- contentFor('css') %>
+  <link rel="stylesheet" type="text/css" href="assets/vendor/star-rating/star-rating-svg.css">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" rel="stylesheet">
+
+  <style>
+    .more-button {
+      color: blue;
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    .more-button:hover {
+      text-decoration: underline;
+    }
+
+    .date-container {
+      position: relative;
+      display: flex;
+      align-items: center;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      padding: 5px 10px;
+      width: 200px;
+      font-family: Arial, sans-serif;
+      background-color: #fff;
+    }
+
+    .date-container input {
+      border: none;
+      outline: none;
+      flex-grow: 1;
+      padding: 5px;
+      font-size: 14px;
+    }
+
+    .date-container input[type="date"]::-webkit-calendar-picker-indicator {
+      display: none;
+    }
+
+    .date-container img {
+      width: 20px;
+      height: 20px;
+      cursor: pointer;
+    }
+
+    .boxenKategorien {
+      display: flex !important;
+      flex-direction: row !important;
+      width: auto !important;
+      height: auto !important;
+    }
+
+    .boxenKategorien button {
+      background-color: rgb(227, 226, 226) !important;
+      margin: 10px 5px !important;
+      padding: 10px !important;
+      font-size: 14px;
+      border-radius: 10px;
+      border-style: none;
+    }
+  </style>
+
+  <%- contentFor('body') %>
+    <div class="content-body default-height">
+      <div class="container-fluid">
+        <div class="row page-titles">
+          <ol class="breadcrumb">
+            <li class="breadcrumb-item">
+              <a href="javascript:void(0)">Shop</a>
+            </li>
+            <li class="breadcrumb-item active">
+              <a href="javascript:void(0)">Product-List</a>
+            </li>
+          </ol>
+        </div>
+        <div class="boxenKategorien">
+          <% const kategorien=[]; %>
+            <% inserate.forEach(item=> {
+              if (!kategorien.includes(item.kategorie_name)) {
+              kategorien.push(item.kategorie_name);
+              }
+              }); %>
+              <button onclick="filterByCategory('')">Alle anzeigen</button>
+              <% kategorien.forEach(kategorie=> { %>
+                <button onclick="filterByCategory('<%= kategorie %>')">
+                  <%= kategorie %>
+                </button>
+                <% }); %>
+        </div>
+        <div class="row">
+          <% if (inserate && inserate.length> 0) { %>
+            <% inserate.forEach(inserat=> { %>
+              <div class="col-lg-12 col-xl-6 col-xxl-4 inserat" data-kategorie="<%= inserat.kategorie_name %>"
+                id="inseratContainer<%= inserat.inserat_id %>">
+                <div class="card">
+                  <div class="card-body">
+                    <div class="row m-b-30">
+                      <div class="col-md-5 col-xxl-12">
+                        <div class="new-arrival-product mb-4 mb-xxl-4 mb-md-0">
+                          <div class="new-arrivals-img-contnent">
+                            <div id="carousel<%= inserat.inserat_id %>" class="carousel slide" data-bs-ride="carousel">
+                              <div class="carousel-inner">
+                                <% if (inserat.titelbild_url) { %>
+                                  <div class="carousel-item active">
+                                    <img class="img-fluid" src="<%= inserat.titelbild_url %>"
+                                      alt="<%= inserat.titel %>">
+                                  </div>
+                                  <% } else { %>
+                                    <div class="carousel-item active">
+                                      <img class="img-fluid" src="images/default-product.jpg" alt="Default Product">
+                                    </div>
+                                    <% } %>
+                                      <% if (inserat.bilder && inserat.bilder.length> 0) { %>
+                                        <% inserat.bilder.forEach((bild, index)=> { %>
+                                          <div class="carousel-item">
+                                            <img class="img-fluid" src="<%= bild %>" alt="Galeriebild <%= index + 1 %>">
+                                          </div>
+                                          <% }); %>
+                                            <% } %>
+                              </div>
+                              <a class="carousel-control-prev" href="#carousel<%= inserat.inserat_id %>" role="button"
+                                data-bs-slide="prev">
+                                <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                                <span class="visually-hidden">Zurück</span>
+                              </a>
+                              <a class="carousel-control-next" href="#carousel<%= inserat.inserat_id %>" role="button"
+                                data-bs-slide="next">
+                                <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                                <span class="visually-hidden">Weiter</span>
+                              </a>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="col-md-7 col-xxl-12">
+                        <div class="new-arrival-content position-relative">
+                          <h4>
+                            <a href="/product-detail/<%= inserat.inserat_id %>"">
+                              <%= inserat.titel %>
+                            </a>
+                          </h4>
+                          <div class=" comment-review star-rating">
+                              <ul>
+                                <% for (let i=0; i < 5; i++) { %>
+                                  <li>
+                                    <i class="fa <%= i < 4 ? 'fa-star' : 'fas fa-star-half-alt' %>"></i>
+                                  </li>
+                                  <% } %>
+                              </ul>
+                              <span class="review-text">(34 reviews) / </span>
+                              <a class="product-review" href="#" data-bs-toggle="modal"
+                                data-bs-target="#reviewModal">Write a review?</a>
+                              <p class="price">
+                                <%= inserat.preis ? `${inserat.preis} €` : 'Auf Anfrage' %>
+                              </p>
+                        </div>
+                        <p>Availability:
+                          <span class="item"> In stock <i class="fa fa-check-circle text-success"></i></span>
+                        </p>
+                        <p>Product code: <span class="item">
+                            <%= inserat.inserat_id %>
+                          </span></p>
+                        <p>Brand: <span class="item">
+                            <%= inserat.kategorie_name || 'No Brand' %>
+                          </span></p>
+                      </div>
+                      <div class="d-flex">
+                        <% const status=inserat.status ? inserat.status.trim() : 'unsichtbar' ; %>
+
+                          <!-- Sichtbar machen Button -->
+                          <% if (status==='unsichtbar' ) { %>
+                            <form method="POST" action="/content/set-visible/<%= inserat.inserat_id %>">
+                              <button onclick="setPruefung(<%= inserat.inserat_id %>)"
+                                class="btn btn-success btn-sm me-2"> <i class="bi bi-check-circle"></i></button>
+                            </form>
+                            <% } %>
+
+                              <!-- Nicht sichtbar setzen Button -->
+                              <button class="btn btn-danger btn-sm"
+                                onclick="showReasonModal(<%= inserat.inserat_id %>); setPruefung(<%= inserat.inserat_id %>)">
+                                <i class="bi bi-x-circle"></i>
+                              </button>
+
+                              <a href="/product-detail/<%= inserat.inserat_id %>" class="btn btn-danger btn-sm"
+                                style="margin-left: 5px;">
+                                <i class="bi bi-search"></i> Anzeigen
+                              </a>
+
+                              <a href="/product-edit/<%= inserat.inserat_id %>" class="btn btn-primary btn-sm"
+                                style="margin-left: 5px;">
+                                <i class="bi bi-pencil"></i> Bearbeiten
+                              </a>
+
+                             <!-- <% if (inserat.werbeanzeige && inserat.werbeanzeige.aktiv) { %>
+                                <button style="margin-left: 5px;" class="btn btn-warning btn-sm"
+                                  onclick="openWerbeanzeigeModal('<%= inserat.inserat_id %>','<%= inserat.werbeanzeige.position %>')">
+                                  <i class="bi bi-star-fill"></i> Bearbeiten (Position: <%=
+                                    inserat.werbeanzeige.position %>)
+                                </button>
+                                <% } else { %>
+                                  <button style="margin-left: 5px;" class="btn btn-primary btn-sm"
+                                    onclick="openWerbeanzeigeModal('<%= inserat.inserat_id %>')">
+                                    <i class="bi bi-star"></i> Bewerben
+                                  </button>
+                                  <% } %>-->
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="input-group">
+                  <input type="date" id="dateInput<%= inserat.inserat_id %>" class="form-control"
+                    value="<%= inserat.erstellt_am ? inserat.erstellt_am.toISOString().split('T')[0] : '' %>">
+                  <button class="btn btn-primary" onclick="updateErstelltAm('<%= inserat.inserat_id %>')">
+                    Aktualisieren
+                  </button>
+                </div>
+              </div>
+        </div>
+        <% }); %>
+          <% } else { %>
+            <div class="col-12">
+              <p class="text-center">Keine Produkte verfügbar.</p>
+            </div>
+            <% } %>
+      </div>
+    </div>
+
+
+    <!-- Review Modal -->
+    <div class="modal fade" id="reviewModal">
+      <div class="modal-dialog" role="document">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Review</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <form>
+              <div class="text-center mb-4">
+                <img class="img-fluid rounded" width="78" src="./images/avatar/1.jpg" alt="Reviewer Avatar">
+              </div>
+              <div class="mb-3">
+                <div class="rating-widget mb-4 text-center">
+                  <div class="rating-stars">
+                    <ul id="stars">
+                      <% for (let i=1; i <=5; i++) { %>
+                        <li class="star" title="<%= i %> stars" data-value="<%= i %>">
+                          <i class="fa fa-star fa-fw"></i>
+                        </li>
+                        <% } %>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+              <div class="mb-3">
+                <textarea class="form-control" placeholder="Kommentar" rows="5"></textarea>
+              </div>
+              <button class="btn btn-success btn-block">Bewerten</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+    </div>
+
+    <% if (inserate && inserate.length> 0) { %>
+      <% inserate.forEach(inserat=> { %>
+        <div class="modal fade" id="reasonModal<%= inserat.inserat_id %>" tabindex="-1"
+          aria-labelledby="reasonModalLabel<%= inserat.inserat_id %>" aria-hidden="true">
+          <div class="modal-dialog">
+            <div class="modal-content">
+              <div class="modal-header">
+                <h5 class="modal-title" id="reasonModalLabel<%= inserat.inserat_id %>">Grund für "Nicht sichtbar"</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+              </div>
+              <div class="modal-body">
+                <form method="POST" action="/content/set-invisible/<%= inserat.inserat_id %>">
+                  <input type="hidden" id="inseratIdInput<%= inserat.inserat_id %>" name="inserat_id"
+                    value="<%= inserat.inserat_id %>">
+                  <div class="mb-3">
+                    <label for="reasonInput<%= inserat.inserat_id %>" class="form-label">Grund</label>
+                    <textarea class="form-control" id="reasonInput<%= inserat.inserat_id %>" name="reason" rows="4"
+                      required></textarea>
+                  </div>
+                  <button type="submit" class="btn btn-danger">Speichern</button>
+                </form>
+              </div>
+            </div>
+          </div>
+        </div>
+        <% }); %>
+          <% } %>
+
+            <div class="modal fade" id="werbeanzeigeModal" tabindex="-1" aria-labelledby="werbeanzeigeModalLabel"
+              aria-hidden="true">
+              <div class="modal-dialog">
+                <div class="modal-content">
+                  <div class="modal-header">
+                    <h5 class="modal-title" id="werbeanzeigeModalLabel">Werbeanzeige erstellen</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+                  </div>
+                  <div class="modal-body">
+                    <form id="werbeanzeigeForm">
+                      <input type="hidden" id="inseratId" name="inserat_id">
+                      <div class="mb-3">
+                        <label for="werbeTyp" class="form-label">Werbe-Typ</label>
+                        <select id="werbeTyp" name="werbe_typ" class="form-select" required>
+                          <option value="top">Top</option>
+                          <option value="banner">Banner</option>
+                          <option value="spezial">Spezial</option>
+                        </select>
+                      </div>
+                      <div class="mb-3">
+                        <label for="startdatum" class="form-label">Startdatum</label>
+                        <input type="date" id="startdatum" name="startdatum" class="form-control" required>
+                      </div>
+                      <div class="mb-3">
+                        <label for="enddatum" class="form-label">Enddatum</label>
+                        <input type="date" id="enddatum" name="enddatum" class="form-control" required>
+                      </div>
+                      <div class="mb-3">
+                        <label for="position" class="form-label">Position</label>
+                        <input type="number" id="position" name="position" class="form-control" required>
+                      </div>
+                    </form>
+                  </div>
+                  <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Schließen</button>
+                    <button type="button" class="btn btn-primary" onclick="submitWerbeanzeige()">Speichern</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+
+
+
+
+            <%- contentFor('script') %>
+              <script src="assets/vendor/star-rating/jquery.star-rating-svg.js"></script>
+              <script src="assets/js/custom.min.js"></script>
+              <script src="assets/js/dlabnav-init.js"></script>
+              <script src="assets/js/demo.js"></script>
+
+              <script>
+                document.addEventListener("DOMContentLoaded", function () {
+                  const elements = document.querySelectorAll(".text-content"); // Selektiere alle Textelemente mit der Klasse .text-content
+                  const maxWords = 50; // Maximale Anzahl von Wörtern
+
+                  elements.forEach((element) => {
+                    const fullText = element.textContent.trim(); // Originaltext
+                    const words = fullText.split(/\s+/); // Text in Wörter aufteilen
+
+                    if (words.length > maxWords) {
+                      const shortText = words.slice(0, maxWords).join(" ") + "..."; // Kürze auf die maximale Anzahl an Wörtern
+                      element.textContent = shortText; // Setze den gekürzten Text
+
+                      // "Mehr anzeigen"-Button erstellen
+                      const moreButton = document.createElement("button");
+                      moreButton.textContent = "Mehr anzeigen";
+                      moreButton.className = "more-button";
+                      moreButton.style.marginLeft = "10px";
+                      moreButton.style.background = "transparent";
+                      moreButton.style.border = "none";
+                      moreButton.style.color = "blue";
+                      moreButton.style.cursor = "pointer";
+                      element.parentElement.appendChild(moreButton); // Füge den Button nach dem Text ein
+
+                      // "Mehr anzeigen"-Button Klick-Event
+                      moreButton.addEventListener("click", function () {
+                        if (element.textContent === shortText) {
+                          element.textContent = fullText; // Zeige den gesamten Text an
+                          moreButton.textContent = "Weniger anzeigen"; // Ändere den Buttontext
+                        } else {
+                          element.textContent = shortText; // Zeige den gekürzten Text wieder an
+                          moreButton.textContent = "Mehr anzeigen"; // Ändere den Buttontext zurück
+                        }
+                      });
+                    }
+                  });
+                });
+
+                function showReasonModal(inseratId) {
+                  const modalId = `#reasonModal${inseratId}`;
+                  const modal = document.querySelector(modalId);
+
+                  if (modal) {
+                    const modalInstance = new bootstrap.Modal(modal);
+                    modalInstance.show();
+                  } else {
+                    console.error(`Modal mit der ID ${modalId} wurde nicht gefunden.`);
+                  }
+                }
+
+                function hideElementAfterClick(inseratId) {
+                  const inseratContainer = document.getElementById(`inseratContainer${inseratId}`);
+                  if (inseratContainer) {
+                    inseratContainer.style.display = 'none'; // Verstecke den Container
+                  } else {
+                    console.error(`Container für Inserat mit ID ${inseratId} nicht gefunden.`);
+                  }
+                }
+
+                // Sichtbar machen
+                function setVisible(inseratId) {
+                  fetch(`/content/set-visible/${inseratId}`, {
+                    method: 'POST',
+                  })
+                    .then(response => {
+                      if (response.ok) {
+                        // Zusätzlich `pruefung` auf 1 setzen und das Element verstecken
+                        return fetch(`/content/set-pruefung/${inseratId}`, {
+                          method: 'POST',
+                        });
+                      } else {
+                        throw new Error('Fehler beim Setzen auf sichtbar.');
+                      }
+                    })
+                    .then(response => {
+                      if (response.ok) {
+                        hideElementAfterClick(inseratId); // Blende das Element nach Erfolg aus
+                      } else {
+                        console.error('Fehler beim Setzen von "pruefung".');
+                      }
+                    })
+                    .catch(error => console.error('Fehler beim Setzen auf sichtbar:', error));
+                }
+
+                // Nicht sichtbar machen
+                function setInvisible(inseratId) {
+                  fetch(`/content/set-invisible/${inseratId}`, {
+                    method: 'POST',
+                  })
+                    .then(response => {
+                      if (response.ok) {
+                        return fetch(`/content/set-pruefung/${inseratId}`, {
+                          method: 'POST',
+                        });
+                      } else {
+                        throw new Error('Fehler beim Setzen auf nicht sichtbar.');
+                      }
+                    })
+                    .then(response => {
+                      if (response.ok) {
+                        hideElementAfterClick(inseratId);
+                      } else {
+                        console.error('Fehler beim Setzen von "pruefung".');
+                      }
+                    })
+                    .catch(error => console.error('Fehler beim Setzen auf nicht sichtbar:', error));
+                }
+                async function updateErstelltAm(inseratId) {
+                  const dateInput = document.getElementById(`dateInput${inseratId}`);
+                  const newDate = dateInput.value;
+
+                  if (!newDate) {
+                    alert('Bitte ein gültiges Datum eingeben.');
+                    return;
+                  }
+
+                  try {
+                    const response = await fetch('/content/update-date', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ inserat_id: inseratId, erstellt_am: newDate }),
+                    });
+
+                    if (response.ok) {
+                      alert('Datum erfolgreich aktualisiert.');
+                      location.reload(); // Seite aktualisieren, um Änderungen anzuzeigen
+                    } else {
+                      throw new Error('Fehler beim Aktualisieren des Datums.');
+                    }
+                  } catch (error) {
+                    console.error('Fehler beim Aktualisieren des Datums:', error);
+                    alert('Ein Fehler ist aufgetreten.');
+                  }
+                }
+
+                function openWerbeanzeigeModal(inseratId, position = null) {
+                  const modal = new bootstrap.Modal(document.getElementById('werbeanzeigeModal'));
+                  document.getElementById('inseratId').value = inseratId;
+                  document.getElementById('werbeTyp').value = position ? 'top' : ''; // Beispiel
+                  document.getElementById('position').value = position || ''; // Position setzen
+                  modal.show();
+                }
+
+
+                function validateWerbeanzeigeForm() {
+                  const startdatum = document.getElementById('startdatum').value;
+                  const enddatum = document.getElementById('enddatum').value;
+                  if (new Date(startdatum) >= new Date(enddatum)) {
+                    alert('Das Enddatum muss nach dem Startdatum liegen.');
+                    return false;
+                  }
+                  return true;
+                }
+
+                async function submitWerbeanzeige() {
+                  if (!validateWerbeanzeigeForm()) return;
+
+                  const form = document.getElementById('werbeanzeigeForm');
+                  const formData = new FormData(form);
+
+                  try {
+                    const response = await fetch('/content/werbeanzeige', {
+                      method: 'POST',
+                      body: JSON.stringify(Object.fromEntries(formData)),
+                      headers: { 'Content-Type': 'application/json' },
+                    });
+
+                    if (response.ok) {
+                      alert('Werbeanzeige erfolgreich erstellt oder ersetzt.');
+                      location.reload();
+                    } else {
+                      throw new Error('Fehler beim Erstellen der Werbeanzeige.');
+                    }
+                  } catch (error) {
+                    console.error('Fehler:', error);
+                    alert('Ein Fehler ist aufgetreten.');
+                  }
+                }
+
+                function filterByCategory(kategorie) {
+                  const inserate = document.querySelectorAll('.inserat');
+
+                  inserate.forEach(inserat => {
+                    const inseratKategorie = inserat.getAttribute('data-kategorie');
+
+                    if (!kategorie || inseratKategorie === kategorie) {
+                      inserat.style.display = 'block'; // Anzeigen, wenn Kategorie passt
+                    } else {
+                      inserat.style.display = 'none'; // Verstecken, wenn Kategorie nicht passt
+                    }
+                  });
+                }
+
+              </script>

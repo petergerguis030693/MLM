@@ -1,0 +1,45 @@
+<%- contentFor('css') %>
+<!-- Vectormap -->
+<link href="vendor/jqvmap/css/jqvmap.min.css" rel="stylesheet">
+
+<%- contentFor('body') %>
+<div class="content-body default-height">
+    <div class="container-fluid">
+    <!-- breadcrumb -->
+    <%- include('../../elements/breadcrumb', {breadcrumb:'Map'}) %>
+        <!-- Vectormap -->
+        <div class="row">
+            <div class="col-lg-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h4 class="card-title">World Map</h4>
+                    </div>
+                    <div class="card-body">
+                        <div id="world-map"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h4 class="card-title">USA</h4>
+                    </div>
+                    <div class="card-body">
+                        <div id="usa" class="height400"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<%- contentFor('script') %>
+<!-- Vectormap -->
+<script src="vendor/jqvmap/js/jquery.vmap.min.js"></script>
+<script src="vendor/jqvmap/js/jquery.vmap.world.js"></script>
+<script src="vendor/jqvmap/js/jquery.vmap.usa.js"></script>
+<!-- All init script -->
+<script src="js/plugins-init/jqvmap-init.js"></script>
+<script src="js/custom.min.js"></script>
+<script src="js/dlabnav-init.js"></script>
+<script src="js/demo.js"></script>

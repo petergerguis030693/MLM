@@ -1,0 +1,68 @@
+
+<%- contentFor('css') %>
+  <link href="/assets/vendor/owl-carousel/owl.carousel.css" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/vendor/nouislider/nouislider.min.css">
+
+  <div class="content-body default-height">
+  <div class="container-fluid">
+    <h3>Auszahlungsübersicht</h3>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Payout ID</th>
+          <th>Partner ID</th>
+          <th>Betrag</th>
+          <th>Status</th>
+          <th>Beantragt am</th>
+          <th>Aktion</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% payouts.forEach(payout => { %>
+          <tr>
+            <td><%= payout.id %></td>
+            <td><%= payout.partner_id %></td>
+            <td><%= payout.amount.toFixed(2) %> €</td>
+            <td><%= payout.status %></td>
+            <td><%= payout.requested_at %></td>
+            <td>
+              <% if (payout.status === 'pending') { %>
+                <button class="btn btn-success approve-payout" data-payout-id="<%= payout.id %>">Genehmigen</button>
+              <% } else { %>
+                <span><%= payout.status %></span>
+              <% } %>
+            </td>
+          </tr>
+        <% }); %>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<%- contentFor('script') %>
+<script>
+  document.querySelectorAll('.approve-payout').forEach(button => {
+    button.addEventListener('click', async (event) => {
+      const payoutId = event.target.dataset.payoutId;
+
+      try {
+        const response = await fetch('/approve-payout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ payoutId }),
+        });
+
+        const result = await response.json();
+        alert(result.message);
+        location.reload();
+      } catch (err) {
+        console.error('Fehler:', err);
+        alert('Fehler bei der Genehmigung der Auszahlung!');
+      }
+    });
+  });
+</script>
+<script src="assets/vendor/owl-carousel/owl.carousel.js"></script>
+<script src="assets/js/custom.min.js"></script>
+<script src="assets/js/dlabnav-init.js"></script>
+<script src="assets/js/demo.js"></script>

@@ -1,0 +1,26 @@
+<%- contentFor('css') %>
+<link href="vendor/fullcalendar/css/main.min.css" rel="stylesheet">
+
+<%- contentFor('body') %>
+<div class="content-body default-height">
+   <!-- row -->
+   <div class="container-fluid">
+      <div class="row">
+         <div class="col-xl-12">
+            <div class="card">
+               <div class="card-body">
+                  <div id="calendar" class="fullcalendar"></div>
+               </div>
+            </div>
+         </div>
+      </div>
+   </div>
+</div>
+<%- contentFor('script') %>
+<script src="vendor/fullcalendar/js/main.min.js"></script>
+<script src="vendor/moment/moment.min.js"></script>
+<script src="js/plugins-init/calendar.js"></script>	
+<!-- Dashboard 1 -->
+<script src="js/custom.min.js"></script>
+<script src="js/dlabnav-init.js"></script>
+<script src="js/demo.js"></script>

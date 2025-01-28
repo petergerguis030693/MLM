@@ -1,0 +1,85 @@
+<%- contentFor('css') %>
+  <link href="assets/vendor/owl-carousel/owl.carousel.css" rel="stylesheet">
+  <link rel="stylesheet" href="assets/vendor/nouislider/nouislider.min.css">
+<%- contentFor('body') %>
+<div class="content-body default-height">
+  <div class="container-fluid">
+    <h3>Aufgabenverwaltung</h3>
+
+    <!-- Aufgabenübersicht -->
+    <table class="table table-striped">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Kunde</th>
+          <th>Beschreibung</th>
+          <th>Fälligkeitsdatum</th>
+          <th>Status</th>
+          <th>Aktionen</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% tasks.forEach(task => { %>
+          <tr>
+            <td><%= task.id %></td>
+            <td><%= task.customer_name %></td>
+            <td><%= task.task_description %></td>
+            <td><%= task.due_date %></td>
+            <td><%= task.status %></td>
+            <td>
+              <!-- Bearbeiten -->
+              <form action="/tasks/edit/<%= task.id %>" method="POST" style="display:inline;">
+                <input type="hidden" name="task_description" value="<%= task.task_description %>">
+                <input type="hidden" name="due_date" value="<%= task.due_date %>">
+                <input type="hidden" name="status" value="in_progress">
+                <button class="btn btn-warning btn-sm">Bearbeiten</button>
+              </form>
+
+              <!-- Als erledigt markieren -->
+              <% if (task.status !== 'completed') { %>
+                <form action="/tasks/edit/<%= task.id %>" method="POST" style="display:inline;">
+                  <input type="hidden" name="status" value="completed">
+                  <button class="btn btn-success btn-sm">Erledigt</button>
+                </form>
+              <% } %>
+
+              <!-- Löschen -->
+              <form action="/tasks/delete/<%= task.id %>" method="POST" style="display:inline;">
+                <button class="btn btn-danger btn-sm">Löschen</button>
+              </form>
+            </td>
+          </tr>
+        <% }) %>
+      </tbody>
+    </table>
+
+    <!-- Neue Aufgabe hinzufügen -->
+    <h4>Neue Aufgabe hinzufügen</h4>
+    <form action="/tasks/add" method="POST">
+      <div class="mb-3">
+        <label for="customer_id">Kunde:</label>
+        <select id="customer_id" name="customer_id" class="form-control" required>
+          <% customers.forEach(customer => { %>
+            <option value="<%= customer.id %>"><%= customer.name %></option>
+          <% }) %>
+        </select>
+      </div>
+      <div class="mb-3">
+        <label for="task_description">Beschreibung:</label>
+        <textarea id="task_description" name="task_description" class="form-control" required></textarea>
+      </div>
+      <div class="mb-3">
+        <label for="due_date">Fälligkeitsdatum:</label>
+        <input type="date" id="due_date" name="due_date" class="form-control" required>
+      </div>
+      <button type="submit" class="btn btn-primary">Aufgabe hinzufügen</button>
+    </form>
+  </div>
+</div>
+<%- contentFor('script') %>
+<script>
+  console.log('CRM System geladen');
+</script>
+<script src="/assets/js/custom.min.js"></script>
+<script src="/assets/js/dlabnav-init.js"></script>
+<script src="/assets/js/demo.js"></script>

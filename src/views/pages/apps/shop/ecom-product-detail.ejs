@@ -1,0 +1,136 @@
+<%- contentFor('body') %>
+<div class="content-body default-height">
+  <div class="container-fluid">
+    <div class="row page-titles">
+      <ol class="breadcrumb">
+        <li class="breadcrumb-item active"><a href="javascript:void(0)">Shop</a></li>
+      </ol>
+    </div>
+    <div class="card">
+      <div class="card-body">
+        <% products.forEach((product) => { %>
+          <div class="row mb-4 product-item">
+            <div class="col-md-4">
+              <img class="img-fluid rounded" src="<%= product.title_image %>" alt="<%= product.product_title %>">
+            </div>
+            <div class="col-md-8">
+              <h4 class="text-black"><%= product.product_title %></h4>
+              <p class="price"><strong>Preis:</strong> <%= product.price %> €</p>
+              <p class="text-black"><strong>Kategorie:</strong> <%= product.category_name %></p>
+              <p class="text-black"><strong>Beschreibung:</strong> <%= product.description %></p>
+              <p>
+                <button class="btn btn-primary open-modal-btn" 
+                        data-bs-toggle="modal" 
+                        data-bs-target="#productModal" 
+                        data-product-id="<%= product.id %>" 
+                        data-product-title="<%= product.product_title %>">
+                  Details ansehen
+                </button>
+              </p>
+            </div>
+          </div>
+          <hr>
+        <% }); %>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="productModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Produktanfrage</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="productForm">
+          <input type="hidden" id="productId" name="productId">
+          <input type="hidden" id="productTitle" name="productTitle">
+          <div class="mb-3">
+            <label for="firstName" class="form-label">Vorname</label>
+            <input type="text" class="form-control" id="firstName" name="firstName" required>
+          </div>
+          <div class="mb-3">
+            <label for="lastName" class="form-label">Nachname</label>
+            <input type="text" class="form-control" id="lastName" name="lastName" required>
+          </div>
+          <div class="mb-3">
+            <label for="email" class="form-label">E-Mail-Adresse</label>
+            <input type="email" class="form-control" id="email" name="email" required>
+          </div>
+          <button type="submit" class="btn btn-primary">Anfrage senden</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<%- contentFor('script') %>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const modal = document.getElementById('productModal');
+  const productForm = document.getElementById('productForm');
+
+  // Füge Event Listener zu allen Buttons hinzu
+  document.querySelectorAll('.open-modal-btn').forEach((button) => {
+    button.addEventListener('click', () => {
+      const productId = button.getAttribute('data-product-id');
+      const productTitle = button.getAttribute('data-product-title');
+
+      document.getElementById('productId').value = productId;
+      document.getElementById('productTitle').value = productTitle;
+    });
+  });
+
+  // Form Submit Event
+  productForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+
+    const productId = document.getElementById('productId').value;
+    const productTitle = document.getElementById('productTitle').value;
+    const firstName = document.getElementById('firstName').value;
+    const lastName = document.getElementById('lastName').value;
+    const email = document.getElementById('email').value;
+
+    // PartnerId aus Cookies oder Query (Fallback auf null)
+    const partnerId = document.cookie
+      .split('; ')
+      .find((row) => row.startsWith('partnerId='))
+      ?.split('=')[1] || null;
+
+    try {
+      const response = await fetch('/send-product-email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          productId,
+          productTitle,
+          firstName,
+          lastName,
+          email,
+          partnerId,
+        }),
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        alert('E-Mail erfolgreich gesendet!');
+        modal.querySelector('.btn-close').click(); // Schließt das Modal
+      } else {
+        alert('Fehler beim Senden der E-Mail: ' + data.message);
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      alert('Ein Fehler ist aufgetreten. Bitte versuchen Sie es erneut.');
+    }
+  });
+});
+</script>
+<script src="assets/vendor/star-rating/jquery.star-rating-svg.js"></script>
+<script src="assets/js/custom.min.js"></script>
+<script src="assets/js/dlabnav-init.js"></script>
+<script src="assets/js/demo.js"></script>

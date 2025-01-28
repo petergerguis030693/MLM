@@ -1,0 +1,165 @@
+<%- contentFor('css') %>
+  <link href="assets/vendor/owl-carousel/owl.carousel.css" rel="stylesheet">
+  <link rel="stylesheet" href="assets/vendor/nouislider/nouislider.min.css">
+
+  <%- contentFor('body') %>
+    <div class="content-body default-height">
+      <div class="container-fluid">
+    <h3>Partner Registrierung</h3>
+    <style>
+      .form-section {
+        margin: 20px 0;
+        padding: 20px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        background: #f9f9f9;
+      }
+      .form-section h4 {
+        margin-bottom: 15px;
+        font-weight: bold;
+      }
+      .btn-next {
+        margin-top: 15px;
+      }
+    </style>
+
+<% if (step === 1) { %>
+  <!-- Schritt 1: Stammdaten -->
+  <div class="form-section">
+    <h4>Schritt 1: Stammdaten</h4>
+    <form action="/complete-registration" method="POST">
+      <input type="hidden" name="partnerId" value="<%= partnerId %>">
+  
+      <!-- Benutzerinformationen -->
+      <div class="mb-3">
+        <label for="username">Benutzername:</label>
+        <input type="text" id="username" name="username" class="form-control" required>
+      </div>
+      <div class="mb-3">
+        <label for="password">Passwort:</label>
+        <input type="password" id="password" name="password" class="form-control" required>
+      </div>
+      <div class="mb-3">
+        <label for="country">Land:</label>
+        <input type="text" id="country" name="country" class="form-control" required>
+      </div>
+  
+      <!-- Stammdaten -->
+      <h5>Firmeninformationen</h5>
+      <div class="mb-3">
+        <label for="firmenname">Firmenname (optional):</label>
+        <input type="text" id="firmenname" name="firmenname" class="form-control">
+      </div>
+      <div class="mb-3">
+        <label for="rechtsform">Rechtsform:</label>
+        <select id="rechtsform" name="rechtsform" class="form-control" required>
+          <option value="GmbH">GmbH</option>
+          <option value="UG">UG</option>
+          <option value="Einzelunternehmer">Einzelunternehmer</option>
+          <option value="Sonstiges">Sonstiges</option>
+        </select>
+      </div>
+      <div class="mb-3">
+        <label for="strasse_hausnummer">Straße und Hausnummer:</label>
+        <input type="text" id="strasse_hausnummer" name="strasse_hausnummer" class="form-control" required>
+      </div>
+      <div class="mb-3">
+        <label for="plz">PLZ:</label>
+        <input type="text" id="plz" name="plz" class="form-control" required>
+      </div>
+      <div class="mb-3">
+        <label for="ort">Ort:</label>
+        <input type="text" id="ort" name="ort" class="form-control" required>
+      </div>
+      <div class="mb-3">
+        <label for="umsatzsteuer_id">Umsatzsteuer-ID (optional):</label>
+        <input type="text" id="umsatzsteuer_id" name="umsatzsteuer_id" class="form-control">
+      </div>
+  
+      <button type="submit" class="btn btn-primary btn-next">Weiter</button>
+    </form>
+  </div>
+  <% } %>
+  
+
+    <% if (step === 2) { %>
+    <!-- Schritt 2: Zustimmungen -->
+    <div class="form-section">
+      <h4>Schritt 2: Zustimmungen</h4>
+      <form action="/next-step" method="POST">
+        <input type="hidden" name="partnerId" value="<%= partnerId %>">
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" id="checkboxPrivacy" name="agreementPrivacy" required>
+          <label class="form-check-label" for="checkboxPrivacy">Ich stimme der Datenschutzvereinbarung zu.</label>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" id="checkboxAGB" name="agreementAGB" required>
+          <label class="form-check-label" for="checkboxAGB">Ich stimme den AGB zu.</label>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" id="checkboxRegulation" name="agreementRegulation" required>
+          <label class="form-check-label" for="checkboxRegulation">Ich stimme der Gewerbeverordnung zu.</label>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" id="checkboxHouseRules" name="agreementHouseRules" required>
+          <label class="form-check-label" for="checkboxHouseRules">Ich stimme der Herando Hausordnung zu.</label>
+        </div>
+        <button type="submit" class="btn btn-primary btn-next">Weiter</button>
+      </form>
+    </div>
+    <% } %>
+
+    <% if (step === 3) { %>
+    <!-- Schritt 3: Dokumente hochladen -->
+    <div class="form-section">
+      <h4>Schritt 3: Dokumente hochladen</h4>
+      <form action="/upload-documents" method="POST" enctype="multipart/form-data">
+        <input type="hidden" name="partnerId" value="<%= partnerId %>">
+        <div class="mb-3">
+          <label for="passport">Reisepass (optional):</label>
+          <input type="file" id="passport" name="passport" class="form-control" accept="application/pdf,image/*">
+        </div>
+        <div class="mb-3">
+          <label for="gewerbe">Gewerberegisterauszug (optional):</label>
+          <input type="file" id="gewerbe" name="gewerbe" class="form-control" accept="application/pdf,image/*">
+        </div>
+        <div class="mb-3">
+          <label for="meldezettel">Meldezettel (optional):</label>
+          <input type="file" id="meldezettel" name="meldezettel" class="form-control" accept="application/pdf,image/*">
+        </div>
+        <button type="submit" class="btn btn-primary btn-next">Weiter</button>
+      </form>
+    </div>
+    <% } %>
+
+    <% if (step === 4) { %>
+    <!-- Schritt 4: Zahlung -->
+    <div class="form-section">
+      <h4>Schritt 4: Zahlung</h4>
+      <p>Bitte führen Sie die Zahlung aus, um die Registrierung abzuschließen.</p>
+      <form action="/create-checkout-session" method="POST">
+        <input type="hidden" name="partnerId" value="<%= partnerId %>">
+        <input type="hidden" name="productId" value="1"> <!-- Lizenzprodukt -->
+        <button type="submit" class="btn btn-primary btn-next">Jetzt bezahlen</button>
+      </form>
+    </div>
+    <% } %>
+
+    <% if (step === 5) { %>
+    <!-- Schritt 5: Registrierung erfolgreich -->
+    <div class="form-section">
+      <h4>Registrierung abgeschlossen!</h4>
+      <p>Vielen Dank für Ihre Registrierung. Wir prüfen Ihre Daten und schalten Sie in Kürze frei.</p>
+    </div>
+    <% } %>
+  </div>
+</div>
+
+<%- contentFor('script') %>
+<script src="/assets/vendor/owl-carousel/owl.carousel.js"></script>
+<script src="/assets/js/custom.min.js"></script>
+<script src="/assets/js/dlabnav-init.js"></script>
+<script src="/assets/js/demo.js"></script>
+<script>
+  console.log('Step:', <%= step %>);
+</script>

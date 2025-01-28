@@ -1,0 +1,255 @@
+<%- contentFor('body') %>
+  <div class="content-body default-height">
+    <div class="container-fluid">
+      <div class="row">
+        <!-- Linke Spalte: Nachrichtenübersicht -->
+        <div class="col-md-4 border-end bg-light" style="height: 100vh; overflow-y: auto;">
+          <div class="d-flex justify-content-between align-items-center p-3 border-bottom">
+            <h5 class="mb-0">Nachrichten</h5>
+            <button id="composeButton" class="btn btn-primary btn-sm">Verfassen</button>
+          </div>
+          <div class="d-flex justify-content-around p-2 border-bottom">
+            <button id="receivedMessagesButton" class="btn btn-link active">Erhaltene Nachrichten</button>
+            <button id="sentMessagesButton" class="btn btn-link">Gesendete Nachrichten</button>
+          </div>
+          <ul id="messageList" class="list-group list-group-flush">
+            <!-- Dynamisch geladene Nachrichten -->
+          </ul>
+        </div>
+
+        <!-- Rechte Spalte: Nachrichtendetails oder Verfassen -->
+        <div class="col-md-8" style="height: 100vh; overflow-y: auto;">
+          <div class="d-flex flex-column h-100" id="messageView">
+            <!-- Nachrichtendetails -->
+            <div id="messageDetails" class="p-3">
+              <h5 class="mb-0">Keine Nachricht ausgewählt</h5>
+              <p class="text-muted">Wähle eine Nachricht aus der Liste oder klicke auf "Verfassen".</p>
+            </div>
+
+            <!-- Nachricht verfassen -->
+            <div id="composeMessage" class="d-none p-3">
+              <h5 class="mb-3">Neue Nachricht verfassen</h5>
+              <form id="composeForm">
+                <div class="mb-3">
+                  <label for="partnerSelect" class="form-label">An</label>
+                  <select id="partnerSelect" class="form-select" required>
+                    <!-- Dynamisch geladene Partner -->
+                  </select>
+                </div>
+                <div class="mb-3">
+                  <label for="subjectInput" class="form-label">Betreff</label>
+                  <input type="text" id="subjectInput" class="form-control" placeholder="Betreff eingeben" required />
+                </div>
+                <div class="mb-3">
+                  <label for="messageContentInput" class="form-label">Nachricht</label>
+                  <textarea id="messageContentInput" class="form-control" rows="6" placeholder="Nachricht schreiben..."
+                    required></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary">Senden</button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <%- contentFor('script') %>
+    <script>
+      document.addEventListener('DOMContentLoaded', () => {
+        const messageList = document.getElementById('messageList');
+        const messageDetails = document.getElementById('messageDetails');
+        const composeMessage = document.getElementById('composeMessage');
+        const composeButton = document.getElementById('composeButton');
+        const composeForm = document.getElementById('composeForm');
+        const partnerSelect = document.getElementById('partnerSelect');
+        const receivedMessagesButton = document.getElementById('receivedMessagesButton');
+        const sentMessagesButton = document.getElementById('sentMessagesButton');
+
+        let messages = []; // Nachrichtenliste
+        let partners = []; // Partnerliste
+        let currentView = 'received'; // Aktuelle Ansicht (received/sent)
+
+        // 1. Nachrichten abrufen
+        async function fetchMessages(type) {
+          try {
+            const response = await fetch(`/api/messages/${type}`);
+            const data = await response.json();
+
+            if (data.success) {
+              renderMessages(data.messages, type);
+            } else {
+              alert('Fehler beim Abrufen der Nachrichten.');
+            }
+          } catch (error) {
+            console.error('Fehler beim Abrufen der Nachrichten:', error);
+          }
+        }
+       
+        // 2. Partner abrufen
+        async function fetchPartners() {
+          try {
+            const response = await fetch('/api/partners');
+            const data = await response.json();
+
+            if (data.success) {
+              partners = data.partners;
+              renderPartners(partners);
+            }
+          } catch (error) {
+            console.error('Fehler beim Abrufen der Partner:', error);
+          }
+        }
+
+        // 3. Nachrichtenübersicht rendern
+        function renderMessages(messages, type) {
+          const messageList = document.getElementById('messageList');
+          messageList.innerHTML = '';
+
+          if (messages.length === 0) {
+            messageList.innerHTML = `<li class="list-group-item">Keine ${type === 'received' ? 'erhaltenen' : 'gesendeten'} Nachrichten vorhanden.</li>`;
+            return;
+          }
+
+          messages.forEach(message => {
+            const li = document.createElement('li');
+            li.className = `list-group-item d-flex justify-content-between ${message.is_read ? '' : 'fw-bold'}`;
+            li.innerHTML = `
+              <div>
+                <strong>${type === 'received' ? message.sender_name : message.receiver_name}</strong>
+                <p>${message.subject || 'Kein Betreff'}: ${message.message_content.substring(0, 30)}...</p>
+              </div>
+              <small>${new Date(message.sent_at).toLocaleString()}</small>
+            `;
+            li.onclick = () => openMessage(message);
+            messageList.appendChild(li);
+          });
+        }
+
+        // 4. Partnerliste rendern
+        function renderPartners(partners) {
+          partnerSelect.innerHTML = '';
+          partners.forEach(partner => {
+            const option = document.createElement('option');
+            option.value = partner.id;
+            option.textContent = partner.name;
+            partnerSelect.appendChild(option);
+          });
+        }
+
+        // Partner abrufen und rendern
+        async function fetchPartners() {
+          try {
+            const response = await fetch('/api/partners'); // Ruft die direkten Partner ab
+            const data = await response.json();
+
+            if (data.success) {
+              partners = data.partners; // Direkte Partner
+              renderPartners(partners); // Übergibt die Partner an die Render-Funktion
+            }
+          } catch (error) {
+            console.error('Fehler beim Abrufen der Partner:', error);
+          }
+        }
+
+        // Partner in Dropdown rendern
+        function renderPartners(partners) {
+          partnerSelect.innerHTML = ''; // Leert das Dropdown
+
+          if (partners.length === 0) {
+            // Falls keine Partner vorhanden sind
+            const option = document.createElement('option');
+            option.value = '';
+            option.textContent = 'Keine Partner verfügbar';
+            option.disabled = true;
+            option.selected = true;
+            partnerSelect.appendChild(option);
+            return;
+          }
+
+          partners.forEach(partner => {
+            const option = document.createElement('option');
+            option.value = partner.id; // Partner-ID als Wert
+            option.textContent = partner.name; // Partnername als Text
+            partnerSelect.appendChild(option);
+          });
+        }
+
+        // 5. Nachricht öffnen
+        function openMessage(message) {
+          composeMessage.classList.add('d-none');
+          messageDetails.classList.remove('d-none');
+
+          messageDetails.innerHTML = `
+        <h5>${message.subject || 'Keine Betreffzeile'}</h5>
+        <p class="text-muted">${currentView === 'received' ? `Von: ${message.sender_name}` : `An: ${message.receiver_name}`
+            } - ${new Date(message.sent_at).toLocaleString()}</p>
+        <p>${message.message_content}</p>
+      `;
+        }
+
+        // 6. Neue Nachricht verfassen
+        composeButton.addEventListener('click', () => {
+          messageDetails.classList.add('d-none');
+          composeMessage.classList.remove('d-none');
+        });
+
+        // 7. Nachricht senden
+        composeForm.addEventListener('submit', async (e) => {
+          e.preventDefault();
+
+          const receiverId = partnerSelect.value; // Empfänger aus Dropdown
+          const subject = document.getElementById('subjectInput').value.trim();
+          const messageContent = document.getElementById('messageContentInput').value.trim();
+
+          // Validierung der Eingaben
+          if (!receiverId || !messageContent) {
+            alert('Bitte fülle alle Felder aus!');
+            return;
+          }
+
+          try {
+            // Nachricht senden
+            const response = await fetch('/api/messages', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ receiverId, subject, messageContent }),
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+              alert(data.message); // Erfolgsmeldung anzeigen
+              composeForm.reset(); // Formular zurücksetzen
+              fetchMessages('sent'); // Gesendete Nachrichten neu laden
+            } else {
+              alert(data.message); // Fehlermeldung anzeigen
+            }
+          } catch (error) {
+            console.error('Fehler beim Senden der Nachricht:', error);
+            alert('Fehler beim Senden der Nachricht.');
+          }
+        });
+
+        // 8. Zwischen Erhaltenen und Gesendeten Nachrichten wechseln
+        receivedMessagesButton.addEventListener('click', () => {
+          currentView = 'received';
+          receivedMessagesButton.classList.add('active');
+          sentMessagesButton.classList.remove('active');
+          fetchMessages('received');
+        });
+
+        sentMessagesButton.addEventListener('click', () => {
+          currentView = 'sent';
+          sentMessagesButton.classList.add('active');
+          receivedMessagesButton.classList.remove('active');
+          fetchMessages('sent');
+        });
+
+        // Initiale Daten laden
+        fetchMessages();
+        fetchPartners();
+      });
+    </script>
+    <script src="assets/js/custom.min.js"></script>
+    <script src="assets/js/dlabnav-init.js"></script>
+    <script src="assets/js/demo.js"></script>
