@@ -1,296 +1,63 @@
 <div class="dlabnav">
   <div class="dlabnav-scroll">
     <ul class="metismenu" id="menu">
+      
+      <!-- 🌟 Dashboard für alle Benutzer sichtbar -->
       <li>
         <a class="has-arrow " href="javascript:void()" aria-expanded="false">
           <i class="fas fa-home"></i>
           <span class="nav-text">Dashboard</span>
         </a>
         <ul aria-expanded="false">
-          <li>
-            <a href="contacts">Contacts</a>
-          </li>
-          <li>
-            <a href="products">Produktverkauf</a>
-          </li>
-          <li>
-            <a href="partner-register-form">Partner Regstieren</a>
-          </li>
-          <li>
-            <a href="messages">Nachrichten</a>
-          </li>
-          <li>
-            <a href="/bank-details">Bankdaten eingeben</a>
-          </li>
-                
-          <!-- Auszahlung beantragen -->
-          <li>
-            <a href="/payout">Auszahlung beantragen</a>
-          </li>
-          <li>
-            <a href="/invite-partner">Partner EINLADEN</a>
-          </li>
-
-          <li>
-            <a href="email-customer">Link versenden</a>
-          </li>
-
-          <li>
-            <a href="/tasks">Kunde aquarieren</a>
-          </li>
-          
+          <li><a href="/profile">Profil</a></li>
+          <li><a href="products">Produktverkauf</a></li>
+          <li><a href="messages">Nachrichten</a></li>
+          <li><a href="/bank-details">Bankdaten eingeben</a></li>
+          <li><a href="/invite-partner">Partner EINLADEN</a></li>
+          <li><a href="/customers">Kunde anlegen</a></li>
+          <li><a href="/tasks">Kunde aquarieren</a></li>
         </ul>
       </li>
+
+      <!-- 🌟 Adminübersicht nur für Admins, Superadmins und Moderatoren -->
+      <% if (userRole === 'admin' || userRole === 'superadmin' || userRole === 'moderator') { %>
       <li>
-        <a class="has-arrow " href="javascript:void()" aria-expanded="false">
+        <a class="has-arrow" href="javascript:void()" aria-expanded="false">
           <i class="fas fa-info-circle"></i>
           <span class="nav-text">Adminübersicht</span>
         </a>
         <ul aria-expanded="false">
-          <li>
-            <a href="/documents">Dokumente</a>
-          </li>
+          <li><a href="/documents">Dokumente</a></li>
+          <li><a href="/finance">Finanzenübersicht</a></li>
 
+          <!-- 🌟 Email-Menü nur für Superadmins -->
+          <% if (userRole === 'superadmin') { %>
           <li>
             <a class="has-arrow" href="javascript:void()" aria-expanded="false">Email</a>
             <ul aria-expanded="false">
-              <li>
-                <a href="/email-inbox">Inbox</a>
-              </li>
-              <li>
-                <a href="/email-read">Read</a>
-              </li>
+              <li><a href="/email-inbox">Inbox</a></li>
+              <li><a href="/email-read">Read</a></li>
             </ul>
           </li>
-          <li>
-            <a href="/app-calender">Calendar</a>
-          </li>
-          <li>
-            <a class="has-arrow" href="javascript:void()" aria-expanded="false">Shop</a>
-            <ul aria-expanded="false">
-              <li>
-                <a href="/ecom-product-grid">Product Grid</a>
-              </li>
-              <li>
-                <a href="/ecom-product-detail">Product Details</a>
-              </li>
-              <li>
-                <a href="/ecom-product-order">Order</a>
-              </li>
-              <li>
-                <a href="/ecom-checkout">Checkout</a>
-              </li>
-              <li>
-                <a href="/ecom-invoice">Invoice</a>
-              </li>
-              <li>
-                <a href="/ecom-customers">Customers</a>
-              </li>
-            </ul>
-            <li>
-              <a href="/payouts">Auszahlungsübersicht & Genehmigung</a>
-            </li>
-          </li>
+          <% } %>
+          
+          <!-- 🌟 Auszahlungsübersicht nur für Admins & Superadmins -->
+          <% if (userRole === 'admin' || userRole === 'superadmin') { %>
+          <li><a href="/payouts">Auszahlungsübersicht & Genehmigung</a></li>
+          <li><a href="/payments">Payments</a></li>
+          <li><a href="/orders">Bestellstatistiken</a></li>
+          <li><a href="/admin/partner-list">Alle Partnerverwaltung</a></li>
+
+          <% } %>
         </ul>
       </li>
-      <!--<li>
-        <a class="has-arrow " href="javascript:void()" aria-expanded="false">
-          <i class="fas fa-chart-line"></i>
-          <span class="nav-text">Charts</span>
-        </a>
-        <ul aria-expanded="false">
-          <li>
-            <a href="/chart-flot">Flot</a>
-          </li>
-          <li>
-            <a href="/chart-morris">Morris</a>
-          </li>
-          <li>
-            <a href="/chart-chartjs">Chartjs</a>
-          </li>
-          <li>
-            <a href="/chart-chartist">Chartist</a>
-          </li>
-          <li>
-            <a href="/chart-sparkline">Sparkline</a>
-          </li>
-          <li>
-            <a href="/chart-peity">Peity</a>
-          </li>
-        </ul>
-      </li>
-      <li>
-        <a class="has-arrow " href="javascript:void()" aria-expanded="false">
-          <i class="fab fa-bootstrap"></i>
-          <span class="nav-text">Bootstrap</span>
-        </a>
-        <ul aria-expanded="false">
-          <li>
-            <a href="ui-accordion">Accordion</a>
-          </li>
-          <li>
-            <a href="ui-alert">Alert</a>
-          </li>
-          <li>
-            <a href="ui-badge">Badge</a>
-          </li>
-          <li>
-            <a href="ui-button">Button</a>
-          </li>
-          <li>
-            <a href="ui-modal">Modal</a>
-          </li>
-          <li>
-            <a href="ui-button-group">Button Group</a>
-          </li>
-          <li>
-            <a href="ui-list-group">List Group</a>
-          </li>
-          <li>
-            <a href="ui-card">Cards</a>
-          </li>
-          <li>
-            <a href="ui-carousel">Carousel</a>
-          </li>
-          <li>
-            <a href="ui-dropdown">Dropdown</a>
-          </li>
-          <li>
-            <a href="ui-popover">Popover</a>
-          </li>
-          <li>
-            <a href="ui-progressbar">Progressbar</a>
-          </li>
-          <li>
-            <a href="ui-tab">Tab</a>
-          </li>
-          <li>
-            <a href="ui-typography">Typography</a>
-          </li>
-          <li>
-            <a href="ui-pagination">Pagination</a>
-          </li>
-          <li>
-            <a href="ui-grid">Grid</a>
-          </li>
-        </ul>
-      </li>
-      <li>
-        <a class="has-arrow " href="javascript:void()" aria-expanded="false">
-          <i class="fas fa-heart"></i>
-          <span class="nav-text">Plugins</span>
-        </a>
-        <ul aria-expanded="false">
-          <li>
-            <a href="uc-select2">Select 2</a>
-          </li>
-          <li>
-            <a href="uc-nestable">Nestedable</a>
-          </li>
-          <li>
-            <a href="uc-noui-slider">Noui Slider</a>
-          </li>
-          <li>
-            <a href="uc-sweetalert">Sweet Alert</a>
-          </li>
-          <li>
-            <a href="uc-toastr">Toastr</a>
-          </li>
-          <li>
-            <a href="map-jqvmap">Jqv Map</a>
-          </li>
-          <li>
-            <a href="uc-lightgallery">Light Gallery</a>
-          </li>
-        </ul>
-      </li>
-      <li>
-        <a href="widget-basic" aria-expanded="false">
-          <i class="fas fa-user"></i>
-          <span class="nav-text">Widget</span>
-        </a>
-      </li>
-      <li>
-        <a class="has-arrow " href="javascript:void()" aria-expanded="false">
-          <i class="fas fa-file-alt"></i>
-          <span class="nav-text">Forms</span>
-        </a>
-        <ul aria-expanded="false">
-          <li>
-            <a href="form-element">Form Elements</a>
-          </li>
-          <li>
-            <a href="form-wizard">Wizard</a>
-          </li>
-          <li>
-            <a href="form-ckeditor">CkEditor</a>
-          </li>
-          <li>
-            <a href="form-pickers">Pickers</a>
-          </li>
-          <li>
-            <a href="form-validation">Form Validate</a>
-          </li>
-        </ul>
-      </li>
-      <li>
-        <a class="has-arrow " href="javascript:void()" aria-expanded="false">
-          <i class="fas fa-table"></i>
-          <span class="nav-text">Table</span>
-        </a>
-        <ul aria-expanded="false">
-          <li>
-            <a href="table-bootstrap-basic">Bootstrap</a>
-          </li>
-          <li>
-            <a href="table-datatable-basic">Datatable</a>
-          </li>
-        </ul>
-      </li>
-      <li>
-        <a class="has-arrow " href="javascript:void()" aria-expanded="false">
-          <i class="fas fa-clone"></i>
-          <span class="nav-text">Pages</span>
-        </a>
-        <ul aria-expanded="false">
-          <li>
-            <a href="page-login">Login</a>
-          </li>
-          <li>
-            <a href="page-register">Register</a>
-          </li>
-          <li>
-            <a class="has-arrow" href="javascript:void()" aria-expanded="false">Error</a>
-            <ul aria-expanded="false">
-              <li>
-                <a href="page-error-400">Error 400</a>
-              </li>
-              <li>
-                <a href="page-error-403">Error 403</a>
-              </li>
-              <li>
-                <a href="page-error-404">Error 404</a>
-              </li>
-              <li>
-                <a href="page-error-500">Error 500</a>
-              </li>
-              <li>
-                <a href="page-error-503">Error 503</a>
-              </li>
-            </ul>
-          </li>
-          <li>
-            <a href="page-lock-screen">Lock Screen</a>
-          </li>
-          <li>
-            <a href="empty-page">Empty Page</a>
-          </li>
-        </ul>
-      </li>-->
+      <% } %>
+
     </ul>
+    
     <div class="copyright">
       <p>Herando A.S. <span class="current-year">2025</span> All Rights Reserved</p>
-      <p class="fs-12">Made with <span class="heart"></span> by Herando </p>
+      <p class="fs-12">Made with <span class="heart"></span> by Herando</p>
     </div>
   </div>
 </div>

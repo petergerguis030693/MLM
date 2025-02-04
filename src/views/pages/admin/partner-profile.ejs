@@ -1,0 +1,75 @@
+<%- contentFor('css') %>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="assets/vendor/owl-carousel/owl.carousel.css" rel="stylesheet">
+<link rel="stylesheet" href="assets/vendor/nouislider/nouislider.min.css">
+
+<%- contentFor('body') %>
+<div class="content-body default-height">
+    <div class="container-fluid">
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <div class="card shadow-sm border-0 rounded">
+                    <div class="card-header bg-primary text-white">
+                        <h3 class="mb-0">Partner Stammdaten</h3>
+                    </div>
+                    <div class="card-body">
+                        <p><strong>Firmenname:</strong> <%= stammdaten.firmenname %></p>
+                        <p><strong>Rechtsform:</strong> <%= stammdaten.rechtsform %></p>
+                        <p><strong>USt-ID:</strong> <%= stammdaten.umsatzsteuer_id %></p>
+                        <p><strong>Adresse:</strong> <%= stammdaten.strasse_hausnummer %>, <%= stammdaten.plz %> <%= stammdaten.ort %></p>
+                    </div>
+                </div>
+
+                <div class="card shadow-sm border-0 rounded mt-4">
+                    <div class="card-header bg-secondary text-white">
+                        <h4 class="mb-0">Aktionen</h4>
+                    </div>
+                    <div class="card-body">
+                        <form action="/admin/partner/<%= partner.id %>/profile/update" method="POST">
+                            <div class="mb-3">
+                                <label class="form-label">Firmenname:</label>
+                                <input type="text" class="form-control" name="firmenname" value="<%= stammdaten.firmenname %>">
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Rechtsform:</label>
+                                <select class="form-select" name="rechtsform">
+                                    <option value="GmbH" <% if (stammdaten.rechtsform==='GmbH') { %>selected<% } %>>GmbH</option>
+                                    <option value="UG" <% if (stammdaten.rechtsform==='UG') { %>selected<% } %>>UG</option>
+                                    <option value="Einzelunternehmer" <% if (stammdaten.rechtsform==='Einzelunternehmer') { %>selected<% } %>>Einzelunternehmer</option>
+                                    <option value="Sonstiges" <% if (stammdaten.rechtsform==='Sonstiges') { %>selected<% } %>>Sonstiges</option>
+                                </select>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Umsatzsteuer-ID:</label>
+                                <input type="text" class="form-control" name="umsatzsteuer_id" value="<%= stammdaten.umsatzsteuer_id %>">
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Adresse:</label>
+                                <input type="text" class="form-control" name="strasse_hausnummer" value="<%= stammdaten.strasse_hausnummer %>" placeholder="Straße & Hausnummer">
+                                <div class="row mt-2">
+                                    <div class="col-md-6">
+                                        <input type="text" class="form-control" name="plz" value="<%= stammdaten.plz %>" placeholder="PLZ">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <input type="text" class="form-control" name="ort" value="<%= stammdaten.ort %>" placeholder="Ort">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary w-100">Speichern</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<%- contentFor('script') %>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="/assets/js/custom.min.js"></script>
+<script src="/assets/js/dlabnav-init.js"></script>
+<script src="/assets/js/demo.js"></script>

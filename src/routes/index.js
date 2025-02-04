@@ -17,6 +17,12 @@ const bcrypt = require('bcrypt'); // Für Passwort-Hashing
 const LoginController = require('../controllers/LoginController');
 const AuthController = require('../controllers/AuthenticationController');
 const AdminControllers = require('../controllers/AdminController');
+const AdminDashController = require('../controllers/AdminDashboardController');
+const { AdminFinanceController } = require('../controllers/AdminFinanceController');
+const { AdminOrdersController, updatePaymentStatus } = require('../controllers/AdminOrdersController');
+const { AdminPaymentsController } = require('../controllers/AdminPaymentsController');
+
+const { adminLogin, adminLogout } = require('../controllers/adminpanel-login');
 
 // Zusätzliche Bibliotheken
 const puppeteer = require('puppeteer'); // Für automatisierte Browseraktionen
@@ -57,6 +63,11 @@ const upload = multer({
   },
 });
 
+const PRICES = {
+  LIGHT: "price_1QmOn2L5p3sufeDWgCwW8hcU",
+  PRO: "price_1QmOpAL5p3sufeDW0HLk6lkf",
+  PREMIUM: "price_1QmOqgL5p3sufeDWWbnrVLfV",
+};
 
 
 // const mw = require('../config/authMiddleware');
@@ -110,13 +121,28 @@ const products = [
   },
 ];
 
-router.get('/products', (req, res) => {
-  res.render('pages/apps/shop/ecom-product-detail', {
-    products, // Alle Produkte aus dem Array
-    login_user: req.user || 'Gast', // Benutzerinfo
-    currentUrl: req.url, // Aktuelle URL
-    headerTitle: 'Alle Produkte', // Titel der Seite
-  });
+router.get('/products', async (req, res) => {
+  try {
+    // Admin-Rolle abrufen
+    const [adminRole] = await db.execute(
+      'SELECT role FROM admin_roles WHERE partnerId = ?',
+      [req.session.userId]
+    );
+
+    const userRole = adminRole.length ? adminRole[0].role : 'partner';
+
+    // Rendern der Seite mit den Produkten
+    res.render('pages/apps/shop/ecom-product-detail', {
+      products, // Alle Produkte
+      userRole,
+      login_user: req.user || 'Gast', // Benutzerinfo
+      currentUrl: req.url, // Aktuelle URL
+      headerTitle: 'Alle Produkte', // Titel der Seite
+    });
+  } catch (error) {
+    console.error('Fehler beim Abrufen der Produkte:', error);
+    res.status(500).send('Interner Serverfehler');
+  }
 });
 
 router.post('/send-product-email', async (req, res) => {
@@ -136,14 +162,16 @@ router.post('/send-product-email', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Produkt nicht gefunden' });
     }
 
+
+
     const paymentIntent = await stripe.paymentIntents.create({
       amount: Math.round(product.price * 100),
       currency: 'eur',
-      metadata: { 
-        productId, 
-        productTitle, 
-        partnerId: partnerId || 'unknown', 
-        partnerName: partnerName || 'unknown' 
+      metadata: {
+        productId,
+        productTitle,
+        partnerId: partnerId || 'unknown',
+        partnerName: partnerName || 'unknown'
       },
     });
 
@@ -213,7 +241,7 @@ router.post('/send-product-email', async (req, res) => {
   }
 });
 
- // Checkout Seite
+// Checkout Seite
 
 router.get('/checkout/:paymentIntent/:productId/:partnerId?', (req, res) => {
   const { paymentIntent, productId, partnerId } = req.params;
@@ -234,7 +262,7 @@ router.get('/checkout/:paymentIntent/:productId/:partnerId?', (req, res) => {
 router.get('/partner-register-form', (req, res) => {
   res.render('pages/partner-register-form', {
     headerTitle: 'Neuen Partner einladen',
-    login_user: req.user, 
+    login_user: req.user,
     currentUrl: req.url,
   });
 });
@@ -251,14 +279,24 @@ router.get('/partner-registration', async (req, res) => {
       return res.status(404).send('Ungültiger Registrierungs-Link.');
     }
 
+    const [adminRole] = await db.execute(
+      'SELECT role FROM admin_roles WHERE partnerId = ?',
+      [req.session.userId]
+    );
+
+    const userRole = adminRole.length ? adminRole[0].role : 'partner';
+
+
+
     res.render('pages/partner-registration', {
       step: parseInt(step, 10),
       partnerId,
       sponsorId: partner[0].sponsor_id || 'Keine Sponsor-ID',
       name: partner[0].name || '',
       email: partner[0].email || '',
-      headerTitle: 'Partner Regstrierung', 
-      login_user: req.user, 
+      userRole,
+      headerTitle: 'Partner Regstrierung',
+      login_user: req.user,
       currentUrl: req.url,
     });
   } catch (error) {
@@ -280,11 +318,21 @@ router.get('/registration-success', async (req, res) => {
       return res.status(404).send('Ungültige Partner-ID.');
     }
 
+    const [adminRole] = await db.execute(
+      'SELECT role FROM admin_roles WHERE partnerId = ?',
+      [req.session.userId]
+    );
+
+    const userRole = adminRole.length ? adminRole[0].role : 'partner';
+
+
     res.render('pages/registration-success', {
       name: partner[0].name || '',
       headerTitle: 'Partner Registrierung',
       login_user: req.user || 'Gast',
       currentUrl: req.url,
+      userRole
+
     });
   } catch (error) {
     console.error('Fehler beim Laden der Erfolgsseite:', error);
@@ -298,13 +346,355 @@ router.use((req, res, next) => {
   next();
 });
 
+
+///////////////////////////////Adminpanel///////////////////////////
+router.get('/manage-admins', async (req, res) => {
+  try {
+    try {
+      const [partners] = await db.execute('SELECT p.id, p.name, ar.role FROM partners p LEFT JOIN admin_roles ar ON p.id = ar.partnerId');
+
+      res.render('pages/manage-admins', {
+        headerTitle: 'Admin Verwaltung',
+        login_user: req.user, // Falls Login-Daten verfügbar sind
+        currentUrl: req.url,
+        partners
+      });
+    } catch (error) {
+      console.error('Fehler beim Laden der Partner:', error);
+      res.status(500).send('Fehler beim Laden der Daten.');
+    }
+  } catch (error) {
+    console.error(error);
+    res.status(500).send("Fehler beim Laden der Partner.");
+  }
+});
+
+router.post('/assign-role', async (req, res) => {
+  const { partnerId, role } = req.body;
+  try {
+    await db.execute(
+      "INSERT INTO admin_roles (partnerId, role) VALUES (?, ?)",
+      [partnerId, role]
+    );
+    res.redirect('/manage-admins');
+  } catch (error) {
+    console.error(error);
+    res.status(500).send("Fehler beim Zuweisen der Rolle.");
+  }
+});
+
+router.post('/remove-role', async (req, res) => {
+  const { partnerId } = req.body;
+  try {
+    await db.execute(
+      "DELETE FROM admin_roles WHERE partnerId = ?",
+      [partnerId]
+    );
+    res.redirect('/manage-admins');
+  } catch (error) {
+    console.error(error);
+    res.status(500).send("Fehler beim Entfernen der Rolle.");
+  }
+});
+
+
+router.get('/admin-dashboard', AdminDashController.AdminDashboardController);
+
+router.get('/finance', AdminFinanceController);
+// Bestellverwaltung (Bestellungen einsehen & bearbeiten)
+router.get('/orders', AdminOrdersController);
+router.post('/admin/update-payment-status', updatePaymentStatus);
+
+
+// Zahlungsverwaltung (Zahlungen einsehen & verwalten)
+router.get('/payments', AdminPaymentsController);
+
+
+router.get('/admin/partner-list', async (req, res) => {
+  try {
+    const userId = req.user ? req.user.id : req.session.userId;
+    const [partners] = await db.query("SELECT * FROM partners");
+    const [adminRole] = await db.query("SELECT role FROM admin_roles WHERE partnerId = ?", [userId || 0]);
+    const userRole = adminRole.length > 0 ? adminRole[0].role : 'partner';
+
+    res.render("pages/admin/partner-list", {
+      partners,
+      headerTitle: "Partner Liste",
+      login_user: req.user || null,
+      userRole,
+      currentUrl: req.url
+    });
+  } catch (err) {
+    console.error("❌ Fehler beim Laden der Partner:", err);
+    res.status(500).send("Fehler beim Laden der Partner");
+  }
+});
+
+// ✅ Partner-Profil anzeigen
+router.get('/admin/partner/:id', async (req, res) => {
+  const partnerId = req.params.id;
+  try {
+    // 🔹 Partnerdaten abrufen
+    const [partner] = await db.query("SELECT * FROM partners WHERE id = ?", [partnerId]);
+    if (!partner.length) {
+      return res.status(404).send("❌ Partner nicht gefunden");
+    }
+
+    // 🔹 Stammdaten abrufen
+    const [stammdaten] = await db.query("SELECT * FROM stammdaten WHERE partner_id = ?", [partnerId]);
+    const partnerStammdaten = stammdaten.length > 0 ? stammdaten[0] : {}; // Falls keine Stammdaten existieren, leere Daten senden.
+
+    // 🔹 Partner-Logs abrufen
+    const [partnerLogs] = await db.query(
+      "SELECT * FROM partner_logs WHERE partner_id = ? ORDER BY timestamp DESC",
+      [partnerId]
+    );
+
+    // 🔹 Sponsor-Infos abrufen (Wer ist der Sponsor des Partners?)
+    const [sponsorInfo] = await db.query(
+      "SELECT id, name, email FROM partners WHERE id = (SELECT sponsor_id FROM partners WHERE id = ?)",
+      [partnerId]
+    );
+
+    // 🔹 Direkte Partner abrufen
+    const [directPartners] = await db.query(
+      "SELECT COUNT(*) as count FROM partners WHERE sponsor_id = ?",
+      [partnerId]
+    );
+
+    // 🔹 Indirekte Partner (bis zur 15. Ebene)
+    const [indirectPartners] = await db.query(
+      `WITH RECURSIVE partner_tree AS (
+              SELECT id FROM partners WHERE sponsor_id = ?
+              UNION ALL
+              SELECT p.id FROM partners p INNER JOIN partner_tree pt ON p.sponsor_id = pt.id
+          )
+          SELECT COUNT(*) as count FROM partner_tree;`,
+      [partnerId]
+    );
+
+    // 🔹 Direkte Umsätze abrufen (nur von direkten Partnern)
+    const [directSales] = await db.query(
+      "SELECT SUM(amount) as total FROM payments WHERE partner_id IN (SELECT id FROM partners WHERE sponsor_id = ?)",
+      [partnerId]
+    );
+
+    // 🔹 Indirekte Umsätze abrufen (Umsätze aller Partner bis zur 15. Ebene)
+    const [indirectSales] = await db.query(
+      `WITH RECURSIVE partner_tree AS (
+              SELECT id FROM partners WHERE sponsor_id = ?
+              UNION ALL
+              SELECT p.id FROM partners p INNER JOIN partner_tree pt ON p.sponsor_id = pt.id
+          )
+          SELECT SUM(amount) as total FROM payments WHERE partner_id IN (SELECT id FROM partner_tree);`,
+      [partnerId]
+    );
+
+    // ✅ Gesamtumsatz des Partners berechnen
+    const [salesResult] = await db.query(
+      "SELECT COALESCE(SUM(amount), 0) AS totalSales FROM payments WHERE partner_id = ?",
+      [partnerId]
+    );
+
+    // 🔹 Gesamtumsätze berechnen (direkt + indirekt)
+    const totalSales = parseFloat(salesResult[0].totalSales) || 0; // Konvertieren in eine Zahl
+
+    // 🔹 Gesamtauszahlungen an den Partner abrufen
+    const [totalPayouts] = await db.query(
+      "SELECT SUM(amount) as total FROM payouts WHERE partner_id = ?",
+      [partnerId]
+    );
+
+    // 🔹 Offene Provisionen abrufen (noch nicht ausgezahlt)
+    const [pendingCommissions] = await db.query(
+      "SELECT SUM(commission_amount) as total FROM commissions WHERE partner_id = ? AND payout_status = 0",
+      [partnerId]
+    );
+
+    // 🔹 Bereits ausgezahlte Provisionen abrufen
+    const [paidCommissions] = await db.query(
+      "SELECT SUM(commission_amount) as total FROM commissions WHERE partner_id = ? AND payout_status = 1",
+      [partnerId]
+    );
+
+    // ✅ **Auszahlungen abrufen & `amount` sicherstellen**
+    const [auszahlungen] = await db.query(
+      "SELECT amount, status, requested_at, approved_at, paid_at FROM payouts WHERE partner_id = ? ORDER BY requested_at DESC",
+      [partnerId]
+    );
+
+    // **Sicherstellen, dass jede Auszahlung einen gültigen `amount` hat**
+    auszahlungen.forEach(auszahlung => {
+      auszahlung.amount = parseFloat(auszahlung.amount) || 0; // Falls `NULL`, wird `0.00` gesetzt
+    });
+
+    // 🔹 Benutzerrolle bestimmen
+    const userId = req.user ? req.user.id : req.session.userId;
+    const [adminRole] = await db.query("SELECT role FROM admin_roles WHERE partnerId = ?", [userId || 0]);
+    const userRole = adminRole.length > 0 ? adminRole[0].role : 'partner';
+
+    // 🔹 Daten an EJS weitergeben
+    res.render("pages/admin/partner-details", {
+      partner: partner[0],
+      stammdaten: partnerStammdaten,  // ✅ Stammdaten übergeben
+      partnerLogs,
+      sponsorInfo: sponsorInfo[0] || null,
+      directPartners: directPartners.length > 0 ? directPartners[0].count : 0,
+      indirectPartners: indirectPartners.length > 0 ? indirectPartners[0].count : 0,
+      directSales: directSales[0].total || 0,
+      indirectSales: indirectSales[0].total || 0,
+      totalSales,
+      totalPayouts: totalPayouts[0].total || 0,
+      pendingCommissions: pendingCommissions[0].total || 0,
+      paidCommissions: paidCommissions[0].total || 0,
+      auszahlungen,
+      headerTitle: "Partner Details",
+      login_user: req.user,
+      userRole,
+      currentUrl: req.url
+    });
+
+  } catch (err) {
+    console.error("❌ Fehler beim Laden des Partners:", err);
+    res.status(500).send("Fehler beim Laden des Partners");
+  }
+});
+
+router.post('/admin/partner/:id/update-stammdaten', async (req, res) => {
+  const partnerId = req.params.id;
+  const { firmenname, rechtsform, umsatzsteuer_id, strasse_hausnummer, plz, ort } = req.body;
+
+  try {
+    await db.query(
+      "UPDATE stammdaten SET firmenname = ?, rechtsform = ?, umsatzsteuer_id = ?, strasse_hausnummer = ?, plz = ?, ort = ?, updated_at = NOW() WHERE partner_id = ?",
+      [firmenname, rechtsform, umsatzsteuer_id, strasse_hausnummer, plz, ort, partnerId]
+    );
+    res.redirect(`/admin/partner/${partnerId}`);
+  } catch (err) {
+    console.error("❌ Fehler beim Aktualisieren der Stammdaten:", err);
+    res.status(500).send("Fehler beim Speichern der Änderungen");
+  }
+});
+
+// ✅ Partner-Profil inklusive Stammdaten anzeigen
+router.get('/admin/partner/:id/profile', async (req, res) => {
+  const partnerId = req.params.id;
+  try {
+    const [partner] = await db.query("SELECT * FROM partners WHERE id = ?", [partnerId]);
+    const [stammdaten] = await db.query("SELECT * FROM stammdaten WHERE partner_id = ?", [partnerId]);
+
+    if (!partner.length) {
+      return res.status(404).send("❌ Partner nicht gefunden");
+    }
+
+    res.render("pages/admin/partner-profile", {
+      partner: partner[0],
+      stammdaten: stammdaten[0],
+      headerTitle: "Partner Profil",
+      login_user: req.user,
+      currentUrl: req.url
+    });
+  } catch (err) {
+    console.error("❌ Fehler beim Laden des Partnerprofils:", err);
+    res.status(500).send("Fehler beim Laden des Partnerprofils");
+  }
+});
+
+// ✅ Partner-Profil aktualisieren
+router.post('/admin/partner/:id/profile/update', async (req, res) => {
+  const partnerId = req.params.id;
+  const { name, email } = req.body;
+  try {
+    await db.query("UPDATE partners SET name = ?, email = ? WHERE id = ?", [name, email, partnerId]);
+    res.redirect(`/admin/partner/${partnerId}/profile`);
+  } catch (err) {
+    console.error("❌ Fehler beim Aktualisieren des Partnerprofils:", err);
+    res.status(500).send("Fehler beim Aktualisieren des Partnerprofils");
+  }
+});
+
+// ✅ Partner sperren/entsperren
+router.post('/admin/partner/:id/toggle-status', async (req, res) => {
+  const partnerId = req.params.id;
+  try {
+    const [partner] = await db.query("SELECT is_active FROM partners WHERE id = ?", [partnerId]);
+    if (!partner.length) {
+      return res.status(404).send("❌ Partner nicht gefunden");
+    }
+
+    const newStatus = partner[0].is_active ? 0 : 1;
+    await db.query("UPDATE partners SET is_active = ? WHERE id = ?", [newStatus, partnerId]);
+
+    res.redirect("/admin/partner-list");
+  } catch (err) {
+    console.error("❌ Fehler beim Ändern des Status:", err);
+    res.status(500).send("Fehler beim Ändern des Status");
+  }
+});
+
+// ✅ Partner endgültig löschen und loggen
+router.post('/admin/partner/:id/delete', async (req, res) => {
+  const partnerId = req.params.id;
+  try {
+    await db.query("DELETE FROM partners WHERE id = ?", [partnerId]);
+    await db.query("INSERT INTO partner_logs (partner_id, action) VALUES (?, ?)", [partnerId, "Partner gelöscht"]);
+
+    res.redirect("/admin/partner-list");
+  } catch (err) {
+    console.error("❌ Fehler beim Löschen des Partners:", err);
+    res.status(500).send("Fehler beim Löschen des Partners");
+  }
+});
+
+// ✅ Partner-Logs abrufen
+router.get('/admin/partner/:id/logs', async (req, res) => {
+  const partnerId = req.params.id;
+  try {
+    const [logs] = await db.query("SELECT * FROM partner_logs WHERE partner_id = ? ORDER BY timestamp DESC", [partnerId]);
+    res.json(logs);
+  } catch (err) {
+    console.error("❌ Fehler beim Laden der Logs:", err);
+    res.status(500).send("Fehler beim Laden der Logs");
+  }
+});
+
+// ✅ Debit-Karte abrufen
+router.get('/admin/partner/:id/debit-card', async (req, res) => {
+  const partnerId = req.params.id;
+  try {
+    const [debitCard] = await db.query("SELECT debit_card FROM partners WHERE id = ?", [partnerId]);
+    if (!debitCard.length) {
+      return res.status(404).send("❌ Keine Debit-Karte gefunden");
+    }
+    res.json(debitCard[0]);
+  } catch (err) {
+    console.error("❌ Fehler beim Abrufen der Debit-Karte:", err);
+    res.status(500).send("Fehler beim Abrufen der Debit-Karte");
+  }
+});
+
+
+
 /////////////////////////////////////////////////////////////Testen/////////////////////////////////////////////
-router.get('/invite-partner', (req, res) => {
-  res.render('pages/invite-partner', {
-    headerTitle: 'Partner einladen',
-    login_user: req.user || 'Gast',
-    currentUrl: req.url,
-  });
+router.get('/invite-partner', async (req, res) => {
+  try {
+    const [adminRole] = await db.execute(
+      'SELECT role FROM admin_roles WHERE partnerId = ?',
+      [req.session.userId]
+    );
+
+    const userRole = adminRole.length ? adminRole[0].role : 'partner';
+
+    res.render('pages/invite-partner', {
+      headerTitle: 'Partner einladen',
+      login_user: req.user || 'Gast',
+      currentUrl: req.url,
+      userRole
+    });
+  } catch (error) {
+    console.error('Fehler beim Abrufen der Admin-Rolle:', error);
+    res.status(500).send('Interner Serverfehler');
+  }
 });
 
 router.post('/send-partner-invite', async (req, res) => {
@@ -362,8 +752,16 @@ router.get('/registration', async (req, res) => {
       return res.status(404).send('Ungültiger Registrierungslink.');
     }
 
+    const [adminRole] = await db.execute(
+      'SELECT role FROM admin_roles WHERE partnerId = ?',
+      [req.session.userId]
+    );
+
+    const userRole = adminRole.length ? adminRole[0].role : 'partner';
+
     res.render('pages/partner-registration', {
       partnerId,
+      userRole,
       sponsorId: partner[0].sponsor_id,
       headerTitle: 'Registrierung',
       login_user: req.user || 'Gast',
@@ -539,11 +937,60 @@ router.get('/payment-success', async (req, res) => {
         [email, sponsor_id, amountPaid, 'success', 0] // `sponsor_id` wird hier korrekt verwendet
       );
 
+      // 2️⃣ Provisionssätze definieren
+      const commissionRates = [0.15, 0.05, 0.04, 0.03, 0.02, 0.01, 0.01]; // Level 0 (eigene Provision) bis Level 6
+      for (let i = 7; i <= 16; i++) {
+        commissionRates[i] = 0.01; // Level 7–16 bleibt 1%
+      }
+
+      // 3️⃣ Partner-Stammbaum ermitteln & Provisionen berechnen
+      let currentPartner = partnerId;
+      let level = 0; // Start mit Level 0 für eigenen Verdienst
+
+      while (currentPartner && level <= 16) {
+        // Provisionssatz auswählen (ab Level 7 immer 1%)
+        const rate = commissionRates[level] || 0.01;
+        const commissionAmount = amount * rate;
+
+        // Provision speichern (damit auch der erste Partner seine eigene Provision erhält)
+        await db.execute(
+          "INSERT INTO commissions (payment_id, partner_id, level, commission_amount, payout_status) VALUES (?, ?, ?, ?, 0)",
+          [paymentId, currentPartner, level, commissionAmount]
+        );
+
+        console.log(`💰 Provision für Partner ${currentPartner} auf Level ${level}: ${commissionAmount} €`);
+
+        // Nächste Ebene hoch (falls vorhanden)
+        const [sponsor] = await db.query("SELECT sponsor_id FROM partners WHERE id = ?", [currentPartner]);
+
+        if (sponsor.length === 0 || !sponsor[0].sponsor_id) break;
+
+        currentPartner = sponsor[0].sponsor_id;
+        level++;
+      }
+
+      const [latestOrder] = await db.query('SELECT MAX(order_number) AS max_order FROM orders');
+      const nextOrderNumber = latestOrder[0].max_order ? latestOrder[0].max_order + 1 : 100002;
+
+      // 🔹 Bestellung in der `orders`-Tabelle speichern
+      await db.query(
+        'INSERT INTO orders (partner_id, amount, status, created_at, updated_at, order_number, customer_id, product) VALUES (?, ?, ?, NOW(), NOW(), ?, NULL, ?)',
+        [partnerId, amountPaid, 'paid', nextOrderNumber, 'Lizenzgebühr']
+      );
+
+      const [adminRole] = await db.execute(
+        'SELECT role FROM admin_roles WHERE partnerId = ?',
+        [req.session.userId]
+      );
+
+      const userRole = adminRole.length ? adminRole[0].role : 'partner';
+
       // Erfolgsseite rendern
       res.render('pages/payment-success', {
         headerTitle: 'Zahlung erfolgreich',
         login_user: req.user || 'Gast',
         currentUrl: req.url,
+        userRole,
       });
     } else {
       // Weiterleitung bei Zahlungsabbruch
@@ -557,21 +1004,21 @@ router.get('/payment-success', async (req, res) => {
 
 // 8. Zahlung abgebrochen
 router.get('/payment-cancel', (req, res) => {
+
+  const [adminRole] = db.execute(
+    'SELECT role FROM admin_roles WHERE partnerId = ?',
+    [req.session.userId]
+  );
+
+  const userRole = adminRole.length ? adminRole[0].role : 'partner';
+
   res.render('pages/payment-cancel', {
     headerTitle: 'Zahlung abgebrochen',
     login_user: req.user || 'Gast',
+    userRole,
     currentUrl: req.url,
   });
 });
-
-
-
-
-
-
-
-
-
 
 
 
@@ -582,10 +1029,19 @@ router.get('/customers', async (req, res) => {
   try {
     // Nur Kunden anzeigen, die dem aktuellen Partner gehören
     const [customers] = await db.query('SELECT * FROM customers WHERE partner_id = ?', [partnerId]);
+
+    const [adminRole] = await db.execute(
+      'SELECT role FROM admin_roles WHERE partnerId = ?',
+      [req.session.userId]
+    );
+
+    const userRole = adminRole.length ? adminRole[0].role : 'partner';
+
     res.render('pages/crm/customers', {
       headerTitle: 'Kundenverwaltung',
       customers,
       login_user: req.user || 'Gast',
+      userRole,
       currentUrl: req.url,
     });
   } catch (error) {
@@ -672,12 +1128,20 @@ router.get('/tasks', async (req, res) => {
 
     const [customers] = await db.query('SELECT id, name FROM customers WHERE partner_id = ?', [partnerId]);
 
+    const [adminRole] = await db.execute(
+      'SELECT role FROM admin_roles WHERE partnerId = ?',
+      [req.session.userId]
+    );
+
+    const userRole = adminRole.length ? adminRole[0].role : 'partner';
+
     res.render('pages/crm/tasks', {
       headerTitle: 'Aufgabenverwaltung',
       tasks, // Aufgabenliste
       customers, // Kundenliste
       login_user: req.user || 'Gast',
       currentUrl: req.url,
+      userRole,
     });
   } catch (error) {
     console.error('Fehler beim Laden der Aufgaben:', error);
@@ -707,28 +1171,75 @@ router.post('/tasks/add', async (req, res) => {
   }
 });
 
-// Aufgabe bearbeiten
+// Aufgabe bearbeiten + E-Mail versenden
 router.post('/tasks/edit/:id', async (req, res) => {
   const { id } = req.params;
   const { task_description, due_date, status } = req.body;
   const partnerId = req.session.userId; // Authentifizierter Partner
+
   try {
-    // Überprüfen, ob die Aufgabe dem aktuellen Partner gehört
+    // Prüfen, ob die Aufgabe zum Partner gehört
     const [task] = await db.query('SELECT * FROM tasks WHERE id = ? AND partner_id = ?', [id, partnerId]);
     if (task.length === 0) {
       return res.status(403).send('Keine Berechtigung, diese Aufgabe zu bearbeiten.');
     }
 
+    // Aufgabe in der Datenbank aktualisieren
     await db.query(
       'UPDATE tasks SET task_description = ?, due_date = ?, status = ? WHERE id = ? AND partner_id = ?',
       [task_description, due_date, status, id, partnerId]
     );
+
+    // Wenn die Aufgabe als "completed" markiert wird, senden wir eine E-Mail
+    if (status === 'completed') {
+      // Kunden-Mail aus der Datenbank holen
+      const [customer] = await db.query('SELECT email, name FROM customers WHERE id = ?', [task[0].customer_id]);
+
+      if (customer.length > 0) {
+        const customerEmail = customer[0].email;
+        const customerName = customer[0].name;
+
+        // Generiere den Tracking-Link mit Partner-ID
+        const trackingLink = `https://vertrieb.smarttech-connection.com/car.html?partnerId=${partnerId}&customerEmail=${encodeURIComponent(customerEmail)}`;
+
+        // Mail-Transporter konfigurieren
+        const transporter = nodemailer.createTransport({
+          host: "smtp.forpsi.com",
+          port: 465,
+          secure: true,
+          auth: {
+            user: "pg@herando.com",
+            pass: "!Wert74521",
+          },
+        });
+
+        // E-Mail Inhalt
+        const mailOptions = {
+          from: '"Herando Team" <pg@herando.com>',
+          to: customerEmail,
+          subject: `Ihre Anfrage wurde bearbeitet - ${task_description}`,
+          html: `
+                      <p>Sehr geehrte/r ${customerName},</p>
+                      <p>Ihre Anfrage <strong>"${task_description}"</strong> wurde erfolgreich abgeschlossen.</p>
+                      <p>Hier können Sie weitere Details einsehen oder eine Zahlung vornehmen:</p>
+                      <p><a href="${trackingLink}" style="padding: 10px 20px; background: #007bff; color: white; text-decoration: none; border-radius: 5px;">Angebot ansehen</a></p>
+                      <p>Mit freundlichen Grüßen,<br>Ihr Herando-Team</p>
+                  `,
+        };
+
+        // Mail senden
+        await transporter.sendMail(mailOptions);
+        console.log(`E-Mail an ${customerEmail} gesendet! ✅`);
+      }
+    }
+
     res.redirect('/tasks');
   } catch (error) {
     console.error('Fehler beim Bearbeiten einer Aufgabe:', error);
     res.status(500).send('Ein Fehler ist aufgetreten.');
   }
 });
+
 
 // Aufgabe löschen
 router.post('/tasks/delete/:id', async (req, res) => {
@@ -748,13 +1259,6 @@ router.post('/tasks/delete/:id', async (req, res) => {
     res.status(500).send('Ein Fehler ist aufgetreten.');
   }
 });
-
-
-
-
-
-
-
 
 
 /////////////////////////Upload vom Partner genehmigung///////////////////////////////////
@@ -779,9 +1283,20 @@ router.get('/documents', async (req, res) => {
       return { ...partner, documents: partnerDocs };
     });
 
+    const [adminRole] = await db.execute(
+      'SELECT role FROM admin_roles WHERE partnerId = ?',
+      [req.session.userId]
+    );
+
+    const userRole = adminRole.length ? adminRole[0].role : 'partner';
+
+
+
+
     // Render die Seite mit den Partner- und Dokumentdaten
     res.render('pages/partner-documents', {
       partners: partnerData,
+      userRole,
       login_user: req.user,
       currentUrl: req.url,
       headerTitle: 'Dashboard',
@@ -855,10 +1370,26 @@ router.post('/documents/upload', async (req, res) => {
 
 
 router.get("/index", AdminControllers.DashboardController);
-router.get("/dashboard",  AdminControllers.DashboardController);
-router.get("/project-page", AdminControllers.ProjectController );
-router.get("/contacts", AdminControllers.ContactController );
-router.get("/index-2", (req, res) => { res.render("index-2", { login_user: req.user, currentUrl: req.url, headerTitle: 'Dashboard' }); });
+router.get("/dashboard", AdminControllers.DashboardController);
+router.get("/project-page", AdminControllers.ProjectController);
+router.get("/contacts", AdminControllers.ContactController);
+router.get('/admin/dashboard', (req, res) => {
+  console.log("Dashboard-Route wurde aufgerufen!");
+
+  if (!req.session.adminId) {
+    console.log("Kein Admin eingeloggt. Weiterleitung auf /admin/login");
+    return res.redirect('/admin/login');
+  }
+
+  console.log("Admin ist eingeloggt. Rendern von index-2.ejs...");
+  res.render('pages/dashboard/index-2', {
+    login_user: req.session.adminName,
+    currentUrl: req.url,
+    headerTitle: 'Dashboard'
+  });
+});
+
+
 router.get("/kanban", (req, res) => { res.render("kanban", { login_user: req.user, currentUrl: req.url, headerTitle: 'Kanban' }); });
 router.get("/calendar-page", (req, res) => { res.render("calendar-page", { login_user: req.user, currentUrl: req.url, headerTitle: 'Calendar' }); });
 router.get("/message", (req, res) => { res.render("message", { login_user: req.user, currentUrl: req.url, headerTitle: 'Message' }); });
@@ -879,11 +1410,11 @@ router.get("/ecom-customers", (req, res) => { res.render("pages/apps/shop/ecom-c
 //Nachrichten verschicken
 router.get('/messages', async (req, res) => {
   if (!req.session.userId) {
-      return res.status(401).send('Bitte logge dich ein, um die Nachrichten zu sehen.');
+    return res.status(401).send('Bitte logge dich ein, um die Nachrichten zu sehen.');
   }
 
   try {
-      const messages = await db.query(`
+    const messages = await db.query(`
           SELECT m.*, p.name AS sender_name 
           FROM messages m
           JOIN partners p ON m.sender_id = p.id
@@ -891,18 +1422,26 @@ router.get('/messages', async (req, res) => {
           ORDER BY m.sent_at DESC
       `, [req.session.userId]);
 
-      // Falls keine Nachrichten vorhanden sind, eine leere Liste zurückgeben
-      const messageList = messages.length ? messages : []; 
+    // Falls keine Nachrichten vorhanden sind, eine leere Liste zurückgeben
+    const messageList = messages.length ? messages : [];
 
-      res.render('pages/message', {
-          login_user: req.session.userId, // Benutzer-ID
-          currentUrl: req.url, // Aktuelle URL
-          headerTitle: 'Nachrichtenübersicht', // Header-Titel
-          messages: messageList, // Nachrichten (leer, wenn keine vorhanden)
-      });
+    const [adminRole] = await db.execute(
+      'SELECT role FROM admin_roles WHERE partnerId = ?',
+      [req.session.userId]);
+
+    const userRole = adminRole.length ? adminRole[0].role : 'partner';
+
+
+    res.render('pages/message', {
+      login_user: req.session.userId, // Benutzer-ID
+      currentUrl: req.url, // Aktuelle URL
+      headerTitle: 'Nachrichtenübersicht', // Header-Titel
+      messages: messageList, // Nachrichten (leer, wenn keine vorhanden)
+      userRole
+    });
   } catch (error) {
-      console.error('Fehler beim Abrufen der Nachrichten:', error);
-      res.status(500).send('Fehler beim Laden der Nachrichten.');
+    console.error('Fehler beim Abrufen der Nachrichten:', error);
+    res.status(500).send('Fehler beim Laden der Nachrichten.');
   }
 });
 
@@ -936,11 +1475,11 @@ router.post('/messages/read', async (req, res) => {
   const { messageId } = req.body;
 
   try {
-      await db.query('UPDATE messages SET is_read = 1 WHERE id = ?', [messageId]);
-      res.json({ success: true });
+    await db.query('UPDATE messages SET is_read = 1 WHERE id = ?', [messageId]);
+    res.json({ success: true });
   } catch (error) {
-      console.error('Fehler beim Markieren der Nachricht als gelesen:', error);
-      res.status(500).json({ success: false, message: 'Fehler beim Markieren der Nachricht.' });
+    console.error('Fehler beim Markieren der Nachricht als gelesen:', error);
+    res.status(500).json({ success: false, message: 'Fehler beim Markieren der Nachricht.' });
   }
 });
 
@@ -949,15 +1488,15 @@ router.post('/messages/send', async (req, res) => {
   const { senderId, receiverId, messageContent } = req.body;
 
   try {
-      await db.query(`
+    await db.query(`
           INSERT INTO messages (sender_id, receiver_id, message_content, is_read)
           VALUES (?, ?, ?, 0)
       `, [senderId, receiverId, messageContent]);
 
-      res.json({ success: true, message: 'Nachricht erfolgreich gesendet.' });
+    res.json({ success: true, message: 'Nachricht erfolgreich gesendet.' });
   } catch (error) {
-      console.error('Fehler beim Senden der Nachricht:', error);
-      res.status(500).json({ success: false, message: 'Fehler beim Senden der Nachricht.' });
+    console.error('Fehler beim Senden der Nachricht:', error);
+    res.status(500).json({ success: false, message: 'Fehler beim Senden der Nachricht.' });
   }
 });
 
@@ -1076,232 +1615,247 @@ router.post('/add-bank-details', async (req, res) => {
   }
 });
 
-  // Partner: Auszahlung beantragen
-  router.post('/payout', async (req, res) => {
-    const userId = req.session.userId; // Partner-ID aus der Session
-  
-    try {
-      console.log('Aktuelle Partner-ID:', userId);
-  
-      // Provisionen berechnen (nur nicht ausgezahlte Beträge)
-      const [provisionsResult] = await db.query(`
-        WITH RECURSIVE PartnerTree AS (
-          SELECT id, sponsor_id, 1 AS level
-          FROM partners
-          WHERE id = ?
-  
-          UNION ALL
-  
-          SELECT p.id, p.sponsor_id, pt.level + 1
-          FROM partners p
-          INNER JOIN PartnerTree pt ON p.sponsor_id = pt.id
-          WHERE pt.level < 16
-        )
-        SELECT 
-          pt.level,
-          SUM(pm.amount) AS totalAmount,
-          SUM(
-            CASE
-              WHEN pt.level = 1 THEN pm.amount * 0.15
-              WHEN pt.level = 2 THEN pm.amount * 0.05
-              WHEN pt.level = 3 THEN pm.amount * 0.04
-              WHEN pt.level = 4 THEN pm.amount * 0.03
-              WHEN pt.level = 5 THEN pm.amount * 0.02
-              WHEN pt.level <= 16 THEN pm.amount * 0.01
-              ELSE 0
-            END
-          ) AS totalProvision
-        FROM PartnerTree pt
-        INNER JOIN payments pm ON pt.id = pm.partner_id
-        WHERE pm.payment_status = 'success' AND pm.commission_payout = 0
-        GROUP BY pt.level
-        ORDER BY pt.level;
-      `, [userId]);
-  
-      const totalProvision = provisionsResult.reduce((sum, row) => sum + parseFloat(row.totalProvision || 0), 0);
-  
-      if (totalProvision <= 0) {
-        return res.status(400).json({ message: 'Keine verfügbaren Provisionen zur Auszahlung.' });
-      }
-  
-      console.log('Berechnete Provision:', totalProvision);
-  
-      // Auszahlung beantragen
-      await db.query(
-        `INSERT INTO payouts (partner_id, amount, status, requested_at)
-        VALUES (?, ?, 'pending', NOW())`,
-        [userId, totalProvision]
-      );
-  
-      // Vor dem Update: Logge betroffene Datensätze
-      const [rows] = await db.query(
-        `SELECT * FROM payments WHERE payment_status = 'success' AND commission_payout = 0 AND partner_id = ?`,
-        [userId]
-      );
-      console.log('Datensätze vor UPDATE:', rows);
-  
-      // Provisionen als ausgezahlt markieren
-      const [result] = await db.query(
-        `UPDATE payments
-         SET commission_payout = 1
-         WHERE payment_status = 'success' AND commission_payout = 0 AND partner_id = ?`,
-        [userId]
-      );
-  
-      console.log('Aktualisierte Zeilen:', result.affectedRows);
-  
-      res.json({ message: `Auszahlung in Höhe von ${totalProvision.toFixed(2)} € erfolgreich beantragt.` });
-    } catch (error) {
-      console.error('Fehler beim Beantragen der Auszahlung:', error.message);
-      res.status(500).json({ message: 'Fehler beim Beantragen der Auszahlung.' });
+// Partner: Auszahlung beantragen
+router.post('/payout', async (req, res) => {
+  const userId = req.session.userId; // Partner-ID aus der Session
+
+  try {
+    console.log('Aktuelle Partner-ID:', userId);
+
+    // Berechnung der offenen Provisionen aus der `commissions`-Tabelle
+    const [provisionsResult] = await db.query(`
+            WITH RECURSIVE PartnerTree AS (
+                SELECT id, sponsor_id, 1 AS level
+                FROM partners
+                WHERE id = ?
+
+                UNION ALL
+
+                SELECT p.id, p.sponsor_id, pt.level + 1
+                FROM partners p
+                INNER JOIN PartnerTree pt ON p.sponsor_id = pt.id
+                WHERE pt.level < 16
+            )
+            SELECT 
+                pt.level,
+                SUM(c.commission_amount) AS totalProvision
+            FROM PartnerTree pt
+            INNER JOIN commissions c ON pt.id = c.partner_id
+            WHERE c.payout_status = 0
+            GROUP BY pt.level
+            ORDER BY pt.level;
+        `, [userId]);
+
+    const totalProvision = provisionsResult.reduce((sum, row) => sum + parseFloat(row.totalProvision || 0), 0);
+
+    if (totalProvision <= 0) {
+      return res.status(400).json({ message: 'Keine verfügbaren Provisionen zur Auszahlung.' });
     }
-  });
-  
-  router.post('/approve-payout', async (req, res) => {
-    const { payoutId } = req.body;
-  
-    try {
-      console.log('--- Debugging Start ---');
-      console.log('Body:', req.body);
-      console.log('--- Debugging Ende ---');
-  
-      // 1. Prüfen, ob die Auszahlung existiert und ausstehend ist
-      const [payoutRecord] = await db.query(
-        `SELECT * FROM payouts WHERE id = ? AND status = 'pending'`,
-        [payoutId]
-      );
-  
-      if (!payoutRecord.length) {
-        return res.status(404).json({ message: 'Auszahlung nicht gefunden oder bereits bearbeitet.' });
-      }
-  
-      const partnerId = payoutRecord[0].partner_id;
-      const amount = parseFloat(payoutRecord[0].amount);
-  
-      console.log('Genehmige Auszahlung für:', { partnerId, amount });
-  
-      // 2. Statische Bankkonto-Daten für Test
-      const staticIban = 'DE89370400440532013000'; // Simulierte IBAN
-      const staticName = 'Test Benutzer'; // Simulierter Name des Kontoinhabers
-  
-      console.log('Statische Testdaten:', { iban: staticIban, name: staticName });
-  
-      // 3. Erstelle einen Stripe-Connected Account (falls nicht vorhanden)
-      const connectedAccount = await stripe.accounts.create({
-        type: 'custom',
-        country: 'DE',
-        email: `partner${partnerId}@example.com`, // Simulierte E-Mail
-        business_type: 'individual',
-        individual: {
-          first_name: 'Test', // Beispiel-Vorname
-          last_name: 'Benutzer', // Beispiel-Nachname
-          dob: { day: 1, month: 1, year: 1990 }, // Beispiel-Geburtsdatum
-          address: {
-            line1: 'Musterstraße 1', // Beispiel-Adresse
-            postal_code: '10115', // Gültige deutsche Postleitzahl
-            city: 'Berlin', // Stadt
-            country: 'DE', // Deutschland
-          },
-        },
-        capabilities: {
-          transfers: { requested: true },
-          card_payments: { requested: true },
-        },
-        tos_acceptance: {
-          date: Math.floor(Date.now() / 1000), // Aktuelles Datum in Sekunden
-          ip: req.ip, // IP-Adresse des Nutzers
-        },
-      });
-  
-      console.log('Erstellter Connected Account:', connectedAccount.id);
-  
-      // 4. Erstelle ein Bankkonto-Token
-      const bankAccountToken = await stripe.tokens.create({
-        bank_account: {
+
+    console.log('Berechnete Provision:', totalProvision);
+
+    // Auszahlung beantragen und in `payouts` speichern
+    await db.query(
+      `INSERT INTO payouts (partner_id, amount, status, requested_at)
+            VALUES (?, ?, 'pending', NOW())`,
+      [userId, totalProvision]
+    );
+
+    // Vor dem Update: Logge betroffene Provisionen
+    const [rows] = await db.query(
+      `SELECT * FROM commissions WHERE payout_status = 0 AND partner_id = ?`,
+      [userId]
+    );
+    console.log('Provisionen vor UPDATE:', rows);
+
+    // Markiere die Provisionen als ausgezahlt
+    const [result] = await db.query(
+      `UPDATE commissions
+             SET payout_status = 1
+             WHERE payout_status = 0 AND partner_id = ?`,
+      [userId]
+    );
+
+    console.log('Aktualisierte Zeilen:', result.affectedRows);
+
+    res.json({ message: `Auszahlung in Höhe von ${totalProvision.toFixed(2)} € erfolgreich beantragt.` });
+
+  } catch (error) {
+    console.error('❌ Fehler beim Beantragen der Auszahlung:', error.message);
+    res.status(500).json({ message: 'Fehler beim Beantragen der Auszahlung.' });
+  }
+});
+
+
+router.post('/approve-payout', async (req, res) => {
+  const { payoutId } = req.body;
+
+  try {
+    console.log('--- Debugging Start ---');
+    console.log('Body:', req.body);
+    console.log('--- Debugging Ende ---');
+
+    // 1. Prüfen, ob die Auszahlung existiert und ausstehend ist
+    const [payoutRecord] = await db.query(
+      `SELECT * FROM payouts WHERE id = ? AND status = 'pending'`,
+      [payoutId]
+    );
+
+    if (!payoutRecord.length) {
+      return res.status(404).json({ message: 'Auszahlung nicht gefunden oder bereits bearbeitet.' });
+    }
+
+    const partnerId = payoutRecord[0].partner_id;
+    const amount = parseFloat(payoutRecord[0].amount);
+
+    console.log('Genehmige Auszahlung für:', { partnerId, amount });
+
+    // 2. Statische Bankkonto-Daten für Test
+    const staticIban = 'DE89370400440532013000'; // Simulierte IBAN
+    const staticName = 'Test Benutzer'; // Simulierter Name des Kontoinhabers
+
+    console.log('Statische Testdaten:', { iban: staticIban, name: staticName });
+
+    // 3. Erstelle einen Stripe-Connected Account (falls nicht vorhanden)
+    const connectedAccount = await stripe.accounts.create({
+      type: 'custom',
+      country: 'DE',
+      email: `partner${partnerId}@example.com`, // Simulierte E-Mail
+      business_type: 'individual',
+      individual: {
+        first_name: 'Test', // Beispiel-Vorname
+        last_name: 'Benutzer', // Beispiel-Nachname
+        dob: { day: 1, month: 1, year: 1990 }, // Beispiel-Geburtsdatum
+        address: {
+          line1: 'Musterstraße 1', // Beispiel-Adresse
+          postal_code: '10115', // Gültige deutsche Postleitzahl
+          city: 'Berlin', // Stadt
           country: 'DE', // Deutschland
-          currency: 'eur',
-          account_holder_name: staticName,
-          account_holder_type: 'individual', // Oder "company"
-          account_number: staticIban, // Simulierte IBAN
         },
-      });
-  
-      console.log('Erstellter Bankkonto-Token:', bankAccountToken.id);
-  
-      // 5. Verknüpfe den Bankkonto-Token mit dem Connected Account
-      const bankAccount = await stripe.accounts.createExternalAccount(
-        connectedAccount.id,
-        { external_account: bankAccountToken.id }
-      );
-  
-      console.log('Verknüpftes Bankkonto:', bankAccount.id);
-  
-      // 6. Führe die Auszahlung an den Connected Account durch
-      const stripePayout = await stripe.transfers.create({
-        amount: Math.round(amount * 100), // Betrag in Cent
+      },
+      capabilities: {
+        transfers: { requested: true },
+        card_payments: { requested: true },
+      },
+      tos_acceptance: {
+        date: Math.floor(Date.now() / 1000), // Aktuelles Datum in Sekunden
+        ip: req.ip, // IP-Adresse des Nutzers
+      },
+    });
+
+    console.log('Erstellter Connected Account:', connectedAccount.id);
+
+    // 4. Erstelle ein Bankkonto-Token
+    const bankAccountToken = await stripe.tokens.create({
+      bank_account: {
+        country: 'DE', // Deutschland
         currency: 'eur',
-        destination: connectedAccount.id, // Connected Account als Ziel
-        description: `Auszahlung für Partner ID ${partnerId}`,
-        metadata: {
-          partner_id: partnerId,
-          payout_id: payoutId,
-        },
-      });
-  
-      console.log('Stripe-Auszahlung erfolgreich:', stripePayout.id);
-  
-      // 7. Datenbank aktualisieren
-      await db.query(
-        `UPDATE payouts 
+        account_holder_name: staticName,
+        account_holder_type: 'individual', // Oder "company"
+        account_number: staticIban, // Simulierte IBAN
+      },
+    });
+
+    console.log('Erstellter Bankkonto-Token:', bankAccountToken.id);
+
+    // 5. Verknüpfe den Bankkonto-Token mit dem Connected Account
+    const bankAccount = await stripe.accounts.createExternalAccount(
+      connectedAccount.id,
+      { external_account: bankAccountToken.id }
+    );
+
+    console.log('Verknüpftes Bankkonto:', bankAccount.id);
+
+    // 6. Führe die Auszahlung an den Connected Account durch
+    const stripePayout = await stripe.transfers.create({
+      amount: Math.round(amount * 100), // Betrag in Cent
+      currency: 'eur',
+      destination: connectedAccount.id, // Connected Account als Ziel
+      description: `Auszahlung für Partner ID ${partnerId}`,
+      metadata: {
+        partner_id: partnerId,
+        payout_id: payoutId,
+      },
+    });
+
+    console.log('Stripe-Auszahlung erfolgreich:', stripePayout.id);
+
+    // 7. Datenbank aktualisieren
+    await db.query(
+      `UPDATE payouts 
          SET status = 'approved', approved_at = NOW(), paid_at = NOW() 
          WHERE id = ?`,
-        [payoutId]
-      );
-  
-      res.json({ message: `Testauszahlung in Höhe von ${amount.toFixed(2)} € erfolgreich genehmigt.` });
-    } catch (error) {
-      console.error('Fehler beim Genehmigen der Auszahlung:', error.message);
-      res.status(500).json({ message: 'Fehler beim Genehmigen der Auszahlung.' });
-    }
-  });
-    
-  // Admin: Auszahlungsübersicht
-  router.get('/payouts', async (req, res) => {
-    try {
-      const [payouts] = await db.query(`
+      [payoutId]
+    );
+
+    res.json({ message: `Testauszahlung in Höhe von ${amount.toFixed(2)} € erfolgreich genehmigt.` });
+  } catch (error) {
+    console.error('Fehler beim Genehmigen der Auszahlung:', error.message);
+    res.status(500).json({ message: 'Fehler beim Genehmigen der Auszahlung.' });
+  }
+});
+
+// Admin: Auszahlungsübersicht
+router.get('/payouts', async (req, res) => {
+  try {
+    const [payouts] = await db.query(`
         SELECT p.id, p.partner_id, p.amount, p.status, p.requested_at, p.approved_at, p.paid_at 
         FROM payouts p
         ORDER BY p.requested_at DESC
       `);
-  
-      // Konvertiere `amount` in eine Zahl für jede Auszahlung
-      const formattedPayouts = payouts.map(payout => ({
-        ...payout,
-        amount: parseFloat(payout.amount), // Konvertiere amount in eine Zahl
-      }));
-  
-      res.render('pages/admin-payouts', {
-        payouts: formattedPayouts,
-        login_user: req.user,
-        currentUrl: req.url,
-        headerTitle: 'Auszahlungsübersicht',
-      });
-    } catch (error) {
-      console.error('Fehler beim Abrufen der Auszahlungen:', error.message);
-      res.status(500).send('Ein Fehler ist aufgetreten.');
-    }
-  });
-  
 
-  // Partner: Bankdaten-Formular anzeigen
-  router.get('/bank-details', (req, res) => {
-    res.render('pages/bank-details', {
+    // Konvertiere `amount` in eine Zahl für jede Auszahlung
+    const formattedPayouts = payouts.map(payout => ({
+      ...payout,
+      amount: parseFloat(payout.amount), // Konvertiere amount in eine Zahl
+    }));
+
+    const [adminRole] = await db.execute(
+      'SELECT role FROM admin_roles WHERE partnerId = ?',
+      [req.session.userId]
+    );
+
+    const userRole = adminRole.length ? adminRole[0].role : 'partner';
+
+    res.render('pages/admin-payouts', {
+      payouts: formattedPayouts,
+      userRole,
       login_user: req.user,
+      currentUrl: req.url,
+      headerTitle: 'Auszahlungsübersicht',
+    });
+  } catch (error) {
+    console.error('Fehler beim Abrufen der Auszahlungen:', error.message);
+    res.status(500).send('Ein Fehler ist aufgetreten.');
+  }
+});
+
+
+// Partner: Bankdaten-Formular anzeigen
+router.get('/bank-details', async (req, res) => {
+  try {
+    // Admin-Rolle abrufen
+    const [adminRole] = await db.execute(
+      'SELECT role FROM admin_roles WHERE partnerId = ?',
+      [req.session.userId]
+    );
+
+    const userRole = adminRole.length ? adminRole[0].role : 'partner';
+
+    // Rendern der Bank-Detail-Seite mit `userRole`
+    res.render('pages/bank-details', {
+      login_user: req.user || 'Gast',
       currentUrl: req.url,
       headerTitle: 'Bankdaten eingeben',
       userId: req.session.userId || 0,
+      userRole,
     });
-  });
+  } catch (error) {
+    console.error('Fehler beim Abrufen der Admin-Rolle:', error);
+    res.status(500).send('Interner Serverfehler');
+  }
+});
+
 
 /////////////////////////////////////////////////////////////////////////////
 
@@ -1325,13 +1879,13 @@ router.post('/admin/add-role', async (req, res) => {
       INSERT INTO admin_roles (partnerId, role) VALUES (?, ?)
     `, [partnerId, role]);
 
-    res.json({ 
-      message: 'Adminrolle erfolgreich hinzugefügt.' 
+    res.json({
+      message: 'Adminrolle erfolgreich hinzugefügt.'
     });
   } catch (error) {
     console.error('Fehler beim Hinzufügen der Adminrolle:', error.message);
-    res.status(500).json({ 
-      message: 'Fehler beim Hinzufügen der Adminrolle.' 
+    res.status(500).json({
+      message: 'Fehler beim Hinzufügen der Adminrolle.'
     });
   }
 });
@@ -1346,13 +1900,13 @@ router.post('/admin/remove-role', async (req, res) => {
       DELETE FROM admin_roles WHERE partnerId = ?
     `, [partnerId]);
 
-    res.json({ 
-      message: 'Adminrolle erfolgreich entfernt.' 
+    res.json({
+      message: 'Adminrolle erfolgreich entfernt.'
     });
   } catch (error) {
     console.error('Fehler beim Entfernen der Adminrolle:', error.message);
-    res.status(500).json({ 
-      message: 'Fehler beim Entfernen der Adminrolle.' 
+    res.status(500).json({
+      message: 'Fehler beim Entfernen der Adminrolle.'
     });
   }
 });
@@ -1393,9 +1947,9 @@ router.get('/admin/roles', async (req, res) => {
 // Route: Link mit Partner-ID per E-Mail senden
 router.get('/email-customer', (req, res) => {
   res.render('pages/email-customer', {
-      headerTitle: 'Kunden-E-Mail senden',
-      login_user: req.user || 'Gast', 
-      currentUrl: req.url, 
+    headerTitle: 'Kunden-E-Mail senden',
+    login_user: req.user || 'Gast',
+    currentUrl: req.url,
   });
 });
 
@@ -1403,42 +1957,42 @@ router.post('/send-customer-link', async (req, res) => {
   const { email, partnerId } = req.body;
 
   if (!email || !partnerId) {
-      return res.status(400).json({ message: 'E-Mail und Partner-ID sind erforderlich.' });
+    return res.status(400).json({ message: 'E-Mail und Partner-ID sind erforderlich.' });
   }
 
   try {
-      // Dynamischen Link erstellen
-      const link = `https://www.herando.com/my/adverts/private?partnerId=${partnerId}`;
+    // Dynamischen Link erstellen
+    const link = `https://www.herando.com/my/adverts/private?partnerId=${partnerId}`;
 
-      // E-Mail-Versand einrichten
-      const transporter = nodemailer.createTransport({
-          host: 'smtp.forpsi.com',
-          port: 465,
-          secure: true,
-          auth: {
-              user: 'pg@herando.com',
-              pass: '!Wert74521',
-          },
-      });
+    // E-Mail-Versand einrichten
+    const transporter = nodemailer.createTransport({
+      host: 'smtp.forpsi.com',
+      port: 465,
+      secure: true,
+      auth: {
+        user: 'pg@herando.com',
+        pass: '!Wert74521',
+      },
+    });
 
-      // E-Mail senden
-      await transporter.sendMail({
-          from: '"Herando Team" <pg@herando.com>',
-          to: email,
-          subject: 'Ihr persönlicher Buchungslink',
-          html: `
+    // E-Mail senden
+    await transporter.sendMail({
+      from: '"Herando Team" <pg@herando.com>',
+      to: email,
+      subject: 'Ihr persönlicher Buchungslink',
+      html: `
               <p>Sehr geehrte/r Kunde/in,</p>
               <p>Hier ist Ihr persönlicher Buchungslink:</p>
               <p><a href="${link}" target="_blank">${link}</a></p>
               <p>Mit besten Grüßen,<br>Ihr Herando-Team</p>
           `,
-      });
+    });
 
-      console.log(`E-Mail erfolgreich an ${email} gesendet.`);
-      res.status(200).json({ message: 'E-Mail mit Buchungslink erfolgreich gesendet.' });
+    console.log(`E-Mail erfolgreich an ${email} gesendet.`);
+    res.status(200).json({ message: 'E-Mail mit Buchungslink erfolgreich gesendet.' });
   } catch (error) {
-      console.error('Fehler beim Versenden der E-Mail:', error);
-      res.status(500).json({ message: 'Fehler beim Versenden der E-Mail.' });
+    console.error('Fehler beim Versenden der E-Mail:', error);
+    res.status(500).json({ message: 'Fehler beim Versenden der E-Mail.' });
   }
 });
 
@@ -1447,44 +2001,44 @@ router.post('/api/payment', async (req, res) => {
 
   // Eingabewerte prüfen
   if (!partnerId || !amount || !product || !paymentStatus) {
-      return res.status(400).json({ 
-          message: 'Alle Felder (partnerId, amount, product, paymentStatus) sind erforderlich.' 
-      });
+    return res.status(400).json({
+      message: 'Alle Felder (partnerId, amount, product, paymentStatus) sind erforderlich.'
+    });
   }
 
   // Zusätzliche Validierung (optional)
   if (isNaN(amount) || amount <= 0) {
-      return res.status(400).json({ 
-          message: 'Der Betrag (amount) muss eine positive Zahl sein.' 
-      });
+    return res.status(400).json({
+      message: 'Der Betrag (amount) muss eine positive Zahl sein.'
+    });
   }
 
   if (!['success', 'failed'].includes(paymentStatus)) {
-      return res.status(400).json({ 
-          message: 'Der Zahlungsstatus (paymentStatus) muss "success" oder "failed" sein.' 
-      });
+    return res.status(400).json({
+      message: 'Der Zahlungsstatus (paymentStatus) muss "success" oder "failed" sein.'
+    });
   }
 
   try {
-      // Zahlungsdaten in der Datenbank speichern
-      const query = `
+    // Zahlungsdaten in der Datenbank speichern
+    const query = `
           INSERT INTO payments (partner_id, amount, product, payment_status, created_at) 
           VALUES (?, ?, ?, ?, NOW())
       `;
-      await db.query(query, [partnerId, amount, product, paymentStatus]);
+    await db.query(query, [partnerId, amount, product, paymentStatus]);
 
-      console.log(`✅ Zahlung erfolgreich gespeichert: Partner-ID: ${partnerId}, Betrag: ${amount}, Produkt: ${product}, Status: ${paymentStatus}`);
+    console.log(`✅ Zahlung erfolgreich gespeichert: Partner-ID: ${partnerId}, Betrag: ${amount}, Produkt: ${product}, Status: ${paymentStatus}`);
 
-      // Erfolgsantwort
-      res.status(200).json({ 
-          message: 'Zahlungsdaten erfolgreich gespeichert.' 
-      });
+    // Erfolgsantwort
+    res.status(200).json({
+      message: 'Zahlungsdaten erfolgreich gespeichert.'
+    });
   } catch (error) {
-      // Fehlerprotokollierung und Antwort
-      console.error('Fehler beim Speichern der Zahlungsdaten:', error);
-      res.status(500).json({ 
-          message: 'Es ist ein Fehler beim Speichern der Zahlungsdaten aufgetreten.' 
-      });
+    // Fehlerprotokollierung und Antwort
+    console.error('Fehler beim Speichern der Zahlungsdaten:', error);
+    res.status(500).json({
+      message: 'Es ist ein Fehler beim Speichern der Zahlungsdaten aufgetreten.'
+    });
   }
 });
 
@@ -1564,11 +2118,11 @@ const withOutLayoutPageRoute = [
 
 // Beispiel einer Login-Route (falls erforderlich)
 router.post('/login', async (req, res) => {
-  const { userId } = req.body; 
+  const { userId } = req.body;
   res.cookie('userId', userId, { httpOnly: true }); // Setze den Cookie
-  req.session.userId = userId; 
+  req.session.userId = userId;
 
-  res.redirect('/dashboard'); 
+  res.redirect('/dashboard');
 });
 
 router.get("/", function (req, res) {
@@ -1626,7 +2180,7 @@ router.get('/dashboard', async (req, res) => {
 // Route: Hauptseite mit Benutzerüberprüfung
 router.get('/', async (req, res) => {
   const userId = req.cookies.userId; // Lese die Benutzer-ID aus dem Cookie
-  console.log('userId aus Cookie:', userId);  
+  console.log('userId aus Cookie:', userId);
 
   try {
     if (userId) {
@@ -1669,7 +2223,7 @@ router.post('/login', async (req, res) => {
 
     if (user.length > 0) {
       console.log(`Login erfolgreich für Benutzer: ${user[0].username} (ID: ${userId})`);
-      
+
       // Cookie setzen
       res.cookie('userId', userId, { httpOnly: true, secure: true }); // Nutze `secure` für HTTPS
       req.session.userId = userId; // Session setzen, falls benötigt
@@ -1685,14 +2239,195 @@ router.post('/login', async (req, res) => {
   }
 });
 
-router.get('/profile', (req, res) => {
-  res.render('profile', { layout: 'layouts/layout', headerTitle: 'Profile' });
+
+// 🔔 Ungelesene Nachrichten abrufen (für Dropdown-Benachrichtigungen)
+router.get('/notifications/messages', async (req, res) => {
+  try {
+    const userId = req.session.userId;
+
+    // 🔹 Hol alle ungelesenen Nachrichten für den Benutzer
+    const [messages] = await db.query(`
+            SELECT 
+                m.id, m.sender_id, u.name AS sender_name, m.subject, 
+                m.message_content, m.is_read, m.sent_at
+            FROM messages m
+            JOIN partners u ON m.sender_id = u.id
+            WHERE m.receiver_id = ? AND m.is_read = 0
+            ORDER BY m.sent_at DESC
+            LIMIT 5;
+        `, [userId]);
+
+    // 🔹 Anzahl der ungelesenen Nachrichten abrufen
+    const [unreadCount] = await db.query(`
+            SELECT COUNT(*) AS unread FROM messages WHERE receiver_id = ? AND is_read = 0
+        `, [userId]);
+
+    res.json({
+      success: true,
+      messages,
+      unreadCount: unreadCount[0].unread || 0
+    });
+
+  } catch (error) {
+    console.error("❌ Fehler beim Laden der Benachrichtigungen:", error);
+    res.status(500).json({ success: false, message: "Fehler beim Laden der Benachrichtigungen" });
+  }
+});
+
+// 🔹 Nachricht als gelesen markieren
+router.get('/messages/:id', async (req, res) => {
+  const messageId = req.params.id;
+  const userId = req.session.userId; // Angemeldeter Benutzer
+
+  try {
+    // Prüfen, ob die Nachricht existiert und zum Nutzer gehört
+    const [message] = await db.query(
+      "SELECT m.*, s.name AS sender_name, r.name AS receiver_name FROM messages m " +
+      "JOIN partners s ON m.sender_id = s.id " +
+      "JOIN partners r ON m.receiver_id = r.id " +
+      "WHERE m.id = ? AND (m.receiver_id = ? OR m.sender_id = ?)",
+      [messageId, userId, userId]
+    );
+
+    if (message.length === 0) {
+      return res.status(404).send("❌ Nachricht nicht gefunden!");
+    }
+
+    // Nachricht als gelesen markieren, falls Empfänger der aktuelle Nutzer ist
+    if (message[0].receiver_id === userId) {
+      await db.query("UPDATE messages SET is_read = 1 WHERE id = ?", [messageId]);
+    }
+    res.redirect("/pages/messages");
+  } catch (err) {
+    console.error("❌ Fehler beim Abrufen der Nachricht:", err);
+    res.status(500).send("Fehler beim Laden der Nachricht.");
+  }
+});
+
+router.post('/notifications/mark-as-read', (req, res) => {
+  const userId = req.session.userId; // Angemeldeter User
+
+  if (!userId) {
+    return res.status(401).json({ success: false, message: "Nicht eingeloggt." });
+  }
+
+  // 🔥 Speichert in der Session, dass der User die Benachrichtigungen gelesen hat
+  req.session.notificationsRead = true;
+
+  res.json({ success: true, message: "Benachrichtigungen als gelesen markiert." });
+});
+
+// 🔹 Angepasste `/notifications`-Route
+router.get('/notifications', async (req, res) => {
+  try {
+    const userId = req.session.userId; // Aktueller Partner/Admin
+
+    if (!userId) {
+      return res.status(401).json({ success: false, message: "Nicht eingeloggt." });
+    }
+
+    // 1️⃣ Neue Provisionen (nicht ausgezahlt)
+    const [commissions] = await db.query(`
+          SELECT c.id, c.commission_amount, c.created_at, p.name AS partner_name
+          FROM commissions c
+          JOIN partners p ON c.partner_id = p.id
+          WHERE c.partner_id = ? AND c.payout_status = 0
+          ORDER BY c.created_at DESC
+          LIMIT 10
+      `, [userId]);
+
+    // 2️⃣ Neue direkte Partner (registrierte Partner mit sponsor_id)
+    const [newPartners] = await db.query(`
+          SELECT id, name, created_at FROM partners
+          WHERE sponsor_id = ? 
+          ORDER BY created_at DESC
+          LIMIT 10
+      `, [userId]);
+
+    // 📌 Prüft, ob der User Benachrichtigungen bereits gelesen hat
+    const isRead = req.session.notificationsRead || false;
+
+    const unreadCount = isRead ? 0 : commissions.length + newPartners.length;
+
+    res.json({ success: true, commissions: isRead ? [] : commissions, newPartners: isRead ? [] : newPartners, unreadCount });
+  } catch (error) {
+    console.error('❌ Fehler beim Abrufen der Benachrichtigungen:', error);
+    res.status(500).json({ success: false, message: "Fehler beim Abrufen der Benachrichtigungen." });
+  }
+});
+
+
+router.get('/profile', async (req, res) => {
+  try {
+    const userId = req.session.userId;
+
+    // 1️⃣ Benutzerdaten abrufen
+    const [userData] = await db.query(`
+            SELECT p.id, p.username, p.name, p.email, p.country, p.created_at,
+                   s.firmenname, s.rechtsform, s.umsatzsteuer_id, s.strasse_hausnummer, s.plz, s.ort
+            FROM partners p
+            LEFT JOIN stammdaten s ON p.id = s.partner_id
+            WHERE p.id = ?
+        `, [userId]);
+
+    if (userData.length === 0) {
+      return res.redirect('/login');
+    }
+
+    const user = userData[0];
+
+    // 2️⃣ Benutzerrolle abrufen
+    const [roleData] = await db.query(`SELECT role FROM admin_roles WHERE partnerId = ?`, [userId]);
+    const userRole = roleData.length > 0 ? roleData[0].role : 'partner';
+
+    // 3️⃣ Profil-Seite rendern
+    res.render('pages/profile', {
+      layout: 'layouts/layout',
+      headerTitle: 'Profil',
+      user,
+      userRole,
+      login_user: user,
+      currentUrl: req.url
+    });
+
+  } catch (error) {
+    console.error('❌ Fehler beim Laden des Profils:', error);
+    res.status(500).send('Ein Fehler ist aufgetreten.');
+  }
+});
+
+// 🔹 Profil aktualisieren
+router.post('/profile/update', async (req, res) => {
+  try {
+    const userId = req.session.userId;
+    const { name, email, firmenname, strasse, plz, ort } = req.body;
+
+    // 1️⃣ Partner-Tabelle aktualisieren
+    await db.query(`
+            UPDATE partners SET name = ?, email = ? WHERE id = ?
+        `, [name, email, userId]);
+
+    // 2️⃣ Stammdaten aktualisieren
+    await db.query(`
+            INSERT INTO stammdaten (partner_id, firmenname, strasse_hausnummer, plz, ort)
+            VALUES (?, ?, ?, ?, ?)
+            ON DUPLICATE KEY UPDATE firmenname = VALUES(firmenname), strasse_hausnummer = VALUES(strasse_hausnummer),
+                                    plz = VALUES(plz), ort = VALUES(ort)
+        `, [userId, firmenname, strasse, plz, ort]);
+
+    res.json({ success: true, message: "✅ Profil erfolgreich aktualisiert!" });
+
+  } catch (error) {
+    console.error("❌ Fehler beim Aktualisieren des Profils:", error);
+    res.status(500).json({ success: false, message: "❌ Fehler beim Speichern der Daten." });
+  }
 });
 
 router.get("/login", (req, res) => {
-  res.render("pages/authentication/page-login", { layout: false, 
+  res.render("pages/authentication/page-login", {
+    layout: false,
     message: req.query.message || null
-   });
+  });
 });
 
 router.get('/page-register', (req, res) => {

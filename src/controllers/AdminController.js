@@ -79,37 +79,26 @@ const DashboardController = async (req, res) => {
     `);
 
     const [provisionsResult] = await db.query(`
-      WITH RECURSIVE PartnerTree AS (
-        SELECT id, sponsor_id, 1 AS level
-        FROM partners
-        WHERE id = ?
+          WITH RECURSIVE PartnerTree AS (
+            SELECT id, sponsor_id, 1 AS level
+            FROM partners
+            WHERE id = ?
 
-        UNION ALL
+            UNION ALL
 
-        SELECT p.id, p.sponsor_id, pt.level + 1
-        FROM partners p
-        INNER JOIN PartnerTree pt ON p.sponsor_id = pt.id
-        WHERE pt.level < 16
-      )
-      SELECT 
-        pt.level,
-        SUM(pm.amount) AS totalAmount,
-        SUM(
-          CASE
-            WHEN pt.level = 1 THEN pm.amount * 0.15
-            WHEN pt.level = 2 THEN pm.amount * 0.05
-            WHEN pt.level = 3 THEN pm.amount * 0.04
-            WHEN pt.level = 4 THEN pm.amount * 0.03
-            WHEN pt.level = 5 THEN pm.amount * 0.02
-            WHEN pt.level <= 16 THEN pm.amount * 0.01
-            ELSE 0
-          END
-        ) AS totalProvision
-      FROM PartnerTree pt
-      INNER JOIN payments pm ON pt.id = pm.partner_id
-      WHERE pm.payment_status = 'success' AND commission_payout='0'
-      GROUP BY pt.level
-      ORDER BY pt.level;
+            SELECT p.id, p.sponsor_id, pt.level + 1
+            FROM partners p
+            INNER JOIN PartnerTree pt ON p.sponsor_id = pt.id
+            WHERE pt.level < 16
+          )
+          SELECT 
+            pt.level,
+            SUM(c.commission_amount) AS totalProvision
+          FROM PartnerTree pt
+          INNER JOIN commissions c ON pt.id = c.partner_id
+          WHERE c.payout_status = 0
+          GROUP BY pt.level
+          ORDER BY pt.level;
     `, [userId]);
 
     const provisions = provisionsResult.map(row => ({
@@ -152,7 +141,7 @@ const DashboardController = async (req, res) => {
     const onGoing = statistics[0].onGoing || 0;
     const unfinished = statistics[0].unfinished || 0;
 
-    const completedPercentage = totalProjects > 0 ? ((onGoing / totalProjects) * 100).toFixed(2) : 0;  
+    const completedPercentage = totalProjects > 0 ? ((onGoing / totalProjects) * 100).toFixed(2) : 0;
 
     const [tasks] = await db.query(`
       SELECT tasks.*, customers.name AS customer_name 
@@ -160,6 +149,24 @@ const DashboardController = async (req, res) => {
       INNER JOIN customers ON tasks.customer_id = customers.id
       WHERE tasks.partner_id = ? AND tasks.status != 'completed'
     `, [userId]);
+
+    // Benutzer-Daten abrufen, falls `req.user` nicht funktioniert
+    const [userResult] = await db.execute('SELECT * FROM partners WHERE id = ?', [userId]);
+
+    if (userResult.length === 0) {
+      return res.redirect('/login');
+    }
+
+    const user = userResult[0];
+
+    console.log("✅ Eingeloggter User:", user);
+
+    const [adminRole] = await db.execute(
+      'SELECT role FROM admin_roles WHERE partnerId = ?',
+      [user.id]
+    );
+
+    const userRole = adminRole.length ? adminRole[0].role : 'partner';
 
     res.render('pages/dashboard/index', {
       headerTitle: 'Dashboard',
@@ -184,6 +191,7 @@ const DashboardController = async (req, res) => {
       unfinished,
       completedPercentage,
       tasks,
+      userRole,
       currentUrl: req.url,
     });
   } catch (error) {
@@ -219,14 +227,14 @@ router.get('*', (req, res) => {
 const ProjectController = async (req, res) => {
   const url = req.url;
   const data = DataArray.ProjectListArray;
-  res.render("project-page", { currentUrl: url, data: data, login_user:req.user, headerTitle: 'Project'});
+  res.render("project-page", { currentUrl: url, data: data, login_user: req.user, headerTitle: 'Project' });
 }
 
 // Contacts Controller ---------------
 const ContactController = async (req, res) => {
   const url = req.url;
   const data = DataArray.ContactListArray;
-  res.render("contacts", { currentUrl: url, data: data, login_user:req.user, headerTitle: 'Contacts'});
+  res.render("contacts", { currentUrl: url, data: data, login_user: req.user, headerTitle: 'Contacts' });
 }
 
 module.exports = {
@@ -234,4 +242,3 @@ module.exports = {
   ProjectController,
   ContactController
 }
-  

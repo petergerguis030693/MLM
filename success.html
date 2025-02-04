@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zahlung erfolgreich</title>
+</head>
+<body>
+    <h1>✅ Zahlung erfolgreich!</h1>
+    <p>Vielen Dank für Ihren Kauf! und kommen Sie bald wieder</p>
+
+    <script>
+        (async () => {
+            // ✅ Partner-ID und Kunden-E-Mail aus `localStorage` abrufen
+            const partnerId = localStorage.getItem("partnerId");
+            const customerEmail = localStorage.getItem("customerEmail");
+
+            if (!partnerId || !customerEmail) {
+                console.error("❌ Fehler: Keine Partner-ID oder Kunden-E-Mail vorhanden!");
+                return;
+            }
+
+            // ✅ Preis aus der URL auslesen (z. B. `success.html?amount=4999`)
+            const urlParams = new URLSearchParams(window.location.search);
+            let amount = parseFloat(urlParams.get("amount"));
+
+            if (isNaN(amount) || amount <= 0) {
+                console.warn("⚠️ Preis nicht in der URL gefunden, versuche es aus der Seite zu lesen...");
+                
+                // ✅ Falls Preis nicht in der URL ist, aus `.price` extrahieren
+                const priceElement = document.querySelector(".price");
+                if (priceElement) {
+                    amount = parseFloat(priceElement.innerText.replace(/[^0-9,.]/g, "").replace(",", "."));
+                }
+            }
+
+            // ❌ Falls Preis immer noch ungültig ist
+            if (isNaN(amount) || amount <= 0) {
+                console.error("❌ Fehler: Kein gültiger Betrag gefunden!");
+                return;
+            }
+
+            console.log(`💾 Daten werden an Backend gesendet: Partner-ID ${partnerId}, Kunde: ${customerEmail}, Betrag: ${amount} €`);
+
+            try {
+                const response = await fetch("https://vertrieb.smarttech-connection.com:3002/insert-payment", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ 
+                        partnerId: parseInt(partnerId, 10), // Sicherstellen, dass `partnerId` eine Zahl ist
+                        customerEmail, 
+                        amount // Dynamischer Betrag
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Server antwortete mit Status ${response.status}`);
+                }
+
+                const data = await response.json();
+                console.log("✅ Datenbank Insert erfolgreich:", data);
+            } catch (error) {
+                console.error("❌ Fehler beim Insert:", error);
+            }
+        })();
+    </script>
+</body>
+</html>

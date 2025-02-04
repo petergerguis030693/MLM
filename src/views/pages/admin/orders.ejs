@@ -1,0 +1,208 @@
+<%- contentFor('css') %>
+<style>
+    .chart-container {
+        width: 100%;
+        height: 300px;
+        position: relative;
+    }
+
+    /* Styling für SVG statt Canvas */
+    .chart-container svg {
+        width: 100%;
+        height: 100%;
+        background: #f8f9fa;
+        border-radius: 10px;
+        box-shadow: 0px 5px 10px rgba(0, 0, 0, 0.1);
+    }
+
+    .chart-label {
+        fill: #212529;
+        font-size: 12px;
+        text-anchor: middle;
+    }
+</style>
+
+<div class="content-body default-height">
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Umsatz-Statistik -->
+            <div class="col-xl-6">
+                <div class="card shadow">
+                    <div class="card-header bg-dark text-white">
+                        <h4 class="card-title">Bestellstatistiken</h4>
+                    </div>
+                    <div class="card-body">
+                        <h5><i class="fas fa-check-circle text-success"></i> Erfolgreiche Bestellungen: <%= successfulOrders %></h5>
+                        <h5><i class="fas fa-times-circle text-danger"></i> Stornierte Bestellungen: <%= cancelledOrders %></h5>
+                        <h5><i class="fas fa-euro-sign text-warning"></i> Gesamtumsatz: € <%= totalRevenue.toFixed(2) %></h5>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bestellungen pro Monat (SVG-Liniendiagramm) -->
+            <div class="col-xl-6">
+                <div class="card shadow">
+                    <div class="card-header bg-dark text-white">
+                        <h4 class="card-title">Bestellungen pro Monat</h4>
+                    </div>
+                    <div class="card-body">
+                        <!-- Hier verwenden wir ein SVG statt Canvas -->
+                        <div class="chart-container">
+                            <svg id="orderCurveChart" width="600" height="300"></svg>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Offene Zahlungen -->
+        <div class="card shadow">
+            <div class="card-header bg-warning text-dark">
+                <h4 class="card-title">Offene Zahlungen</h4>
+            </div>
+            <div class="card-body">
+                <table class="table table-striped text-center">
+                    <thead>
+                        <tr>
+                            <th>Partner</th>
+                            <th>Betrag (€)</th>
+                            <th>Status</th>
+                            <th>Aktion</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% if (pendingPayments.length > 0) { %>
+                            <% pendingPayments.forEach(payment => { %>
+                                <tr>
+                                    <td><%= payment.partner_name %></td>
+                                    <td class="fw-bold text-danger">€ <%= payment.amount.toFixed(2) %></td>
+                                    <td><span class="badge bg-warning"><%= payment.payment_status %></span></td>
+                                    <td>
+                                        <button class="btn btn-success btn-sm update-status" data-id="<%= payment.id %>" data-status="success">✅ Genehmigen</button>
+                                        <button class="btn btn-danger btn-sm update-status" data-id="<%= payment.id %>" data-status="pending">🔄 Offen</button>
+                                    </td>
+                                </tr>
+                            <% }) %>
+                        <% } else { %>
+                            <tr>
+                                <td colspan="4" class="text-muted"><i class="fas fa-info-circle"></i> Keine offenen Zahlungen gefunden.</td>
+                            </tr>
+                        <% } %>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<%- contentFor('script') %>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        document.querySelectorAll(".update-status").forEach(button => {
+            button.addEventListener("click", function () {
+                const paymentId = this.getAttribute("data-id");
+                const newStatus = this.getAttribute("data-status");
+
+                if (!confirm(`Möchtest du den Status wirklich auf "${newStatus}" ändern?`)) {
+                    return;
+                }
+
+                fetch("/admin/update-payment-status", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ paymentId, newStatus })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert("✅ Zahlungsstatus erfolgreich geändert!");
+                        location.reload();
+                    } else {
+                        alert("❌ Fehler beim Ändern des Zahlungsstatus!");
+                    }
+                })
+                .catch(error => console.error("Fehler:", error));
+            });
+        });
+
+        generateCustomCurveChart(<%= JSON.stringify(orderStatss) %>);
+    });
+
+    function generateCustomCurveChart(data) {
+        if (!data.length) {
+            console.warn("⚠️ Keine Bestelldaten vorhanden!");
+            return;
+        }
+
+        const svg = document.getElementById("orderCurveChart");
+        if (!svg) {
+            console.error("❌ SVG für Order Curve Chart nicht gefunden!");
+            return;
+        }
+
+        // Vorherigen SVG-Inhalt löschen
+        svg.innerHTML = "";
+
+        // SVG-Größen aus den Attributen übernehmen
+        const width = parseInt(svg.getAttribute("width"), 10);
+        const height = parseInt(svg.getAttribute("height"), 10);
+        const padding = 50;
+        const innerWidth = width - padding * 2;
+        const innerHeight = height - padding * 2;
+
+        const labels = data.map(entry => entry.month);
+        const values = data.map(entry => entry.value);
+        const maxValue = Math.max(...values) || 1;
+        const minValue = Math.min(...values) || 0;
+        const stepX = innerWidth / (values.length - 1);
+        const stepY = innerHeight / ((maxValue - minValue) || 1);
+
+        // SVG Namespace
+        const svgns = "http://www.w3.org/2000/svg";
+
+        // Erstelle den Pfad (Liniendiagramm)
+        let pathData = "";
+        data.forEach((entry, index) => {
+            const x = padding + index * stepX;
+            const y = padding + innerHeight - ((entry.value - minValue) * stepY);
+            pathData += index === 0 ? `M ${x} ${y}` : ` L ${x} ${y}`;
+        });
+
+        const pathElem = document.createElementNS(svgns, "path");
+        pathElem.setAttribute("d", pathData);
+        pathElem.setAttribute("fill", "none");
+        pathElem.setAttribute("stroke", "#007bff");
+        pathElem.setAttribute("stroke-width", "3");
+        svg.appendChild(pathElem);
+
+        // Zeichne die Punkte und X-Achsen-Beschriftung
+        data.forEach((entry, index) => {
+            const x = padding + index * stepX;
+            const y = padding + innerHeight - ((entry.value - minValue) * stepY);
+
+            // Punkt als Kreis
+            const circle = document.createElementNS(svgns, "circle");
+            circle.setAttribute("cx", x);
+            circle.setAttribute("cy", y);
+            circle.setAttribute("r", 5);
+            circle.setAttribute("fill", "#007bff");
+            svg.appendChild(circle);
+
+            // Beschriftung (Monat) unterhalb der X-Achse
+            const text = document.createElementNS(svgns, "text");
+            text.setAttribute("x", x);
+            text.setAttribute("y", height - 10);
+            text.setAttribute("class", "chart-label");
+            text.textContent = entry.month;
+            svg.appendChild(text);
+        });
+    }
+</script>
+
+<script src="assets/vendor/apexchart/apexchart.js"></script>
+<script src="assets/vendor/owl-carousel/owl.carousel.js"></script>
+<script src="assets/js/custom.min.js"></script>
+<script src="assets/js/dlabnav-init.js"></script>
+<script src="assets/js/demo.js"></script>

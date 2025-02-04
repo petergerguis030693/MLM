@@ -1,0 +1,321 @@
+<%- contentFor('css') %>
+    <link href="assets/vendor/owl-carousel/owl.carousel.css" rel="stylesheet">
+    <link rel="stylesheet" href="assets/vendor/nouislider/nouislider.min.css">
+    <style>
+        .circle-chart {
+            width: 240px;
+            height: 240px;
+            border-radius: 50%;
+            background: conic-gradient(#28a745 calc(var(--percent) * 1%),
+                    /* Erfolgreiche Zahlungen */
+                    #06d44b calc(var(--percent) * 1%)
+                    /* Fehlgeschlagene Zahlungen */
+                );
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .circle-chart-inner {
+            width: 180px;
+            height: 180px;
+            border-radius: 50%;
+            background: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: #000;
+        }
+    </style>
+
+    <%- contentFor('body') %>
+        <div class="content-body default-height">
+            <div class="container-fluid">
+                <div class="row">
+                    <!-- Finanzübersicht -->
+                    <div class="col-xl-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h4 class="card-title">Finanzübersicht</h4>
+                            </div>
+                            <div class="card-body">
+                                <h5>Monatlicher Umsatz</h5>
+                                <h3><%= successfulPayments %> €</h3>
+                                <h5>Zielumsatz</h5>
+                                <h3>€ <%= targetRevenue.toFixed(2) %>
+                                </h3>
+                                <div class="progress mt-3" style="height: 30px;">
+                                    <div class="progress-bar bg-success progress-animated"
+                                        style="width: <%= revenueProgress %>%;">
+                                        <%= revenueProgress %>% Ziel erreicht
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Zahlungsstatus Diagramm -->
+                    <!-- Zahlungsstatus Kreisdiagramm -->
+                    <div class="col-xl-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h4 class="card-title">Zahlungsstatus</h4>
+                            </div>
+                            <div class="card-body d-flex justify-content-center">
+                                <div class="circle-chart"
+                                    style="--percent: <%= successfulPayments / (successfulPayments + failedPayments) * 100 || 0 %>;">
+                                    <div class="circle-chart-inner">
+                                        <span>
+                                            <%= successfulPayments %> €
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="card-footer">
+                                <small>Erfolgreiche Zahlungen: <%= successfulPayments %> €</small><br>
+                                <small>Fehlgeschlagene Zahlungen: <%= failedPayments %> €</small>
+                            </div>
+                        </div>
+                    </div>
+
+
+
+                    <!-- Letzte Zahlungen -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h4 class="card-title">Letzte Zahlungen</h4>
+                        </div>
+                        <div class="card-body">
+                            <table class="table table-striped">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Partner</th>
+                                        <th>Betrag (€)</th>
+                                        <th>Status</th>
+                                        <th>Datum</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <% payments.forEach((payment, index)=> { %>
+                                        <tr>
+                                            <td>
+                                                <%= index + 1 %>
+                                            </td>
+                                            <td>
+                                                <%= payment.partner_name %>
+                                            </td>
+                                            <td> € <%= (Number(payment.amount) || 0).toFixed(2) %>
+
+                                            </td>
+                                            <td>
+                                                <%= payment.payment_status==='success' ? '✅ Erfolgreich'
+                                                    : '❌ Fehlgeschlagen' %>
+                                            </td>
+                                            <td>
+                                                <%= new Date(payment.created_at).toLocaleDateString('de-DE') %>
+                                            </td>
+                                        </tr>
+                                        <% }) %>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Echtzeit-Umsatzstatistiken -->
+                    <div class="col-xl-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h4 class="card-title">Echtzeit-Umsatzstatistiken</h4>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table table-striped align-middle text-center">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>Monat</th>
+                                                <th>Umsatz (€)</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <% revenueData.forEach(revenue=> { %>
+                                                <tr>
+                                                    <td>
+                                                        <%= revenue.month %>
+                                                    </td>
+                                                    <td class="fw-bold text-success">
+                                                        € <%= (Number(revenue.revenue) || 0).toFixed(2) %>
+                                                            <!-- Sicherstellen, dass es immer eine Zahl ist -->
+                                                    </td>
+                                                </tr>
+                                                <% }) %>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tägliche Neuanmeldungen & Partnerbewegungen -->
+                    <div class="col-xl-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h4 class="card-title">Neuanmeldungen (Letzte 7 Tage)</h4>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table table-striped align-middle text-center">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>Tag</th>
+                                                <th>Neuanmeldungen</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <% dailyRegistrations.forEach(registration=> { %>
+                                                <tr>
+                                                    <td>
+                                                        <%= registration.day %>
+                                                    </td>
+                                                    <td class="fw-bold text-primary">
+                                                        <%= registration.registrations %>
+                                                    </td>
+                                                </tr>
+                                                <% }) %>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Letzte 20 Partneraktivitäten -->
+                    <div class="col-xl-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h4 class="card-title">Letzte 20 Partneraktivitäten</h4>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table table-striped align-middle text-center">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>Partner</th>
+                                                <th>Aktion</th>
+                                                <th>Datum</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <% recentActivities.forEach(activity=> { %>
+                                                <tr>
+                                                    <td>
+                                                        <%= activity.partner_name %>
+                                                    </td>
+                                                    <td>
+                                                        <%= activity.activity_type %>
+                                                    </td>
+                                                    <td>
+                                                        <%= new Date(activity.created_at).toLocaleDateString('de-DE') %>
+                                                    </td>
+                                                </tr>
+                                                <% }) %>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Ausstehende Aufgaben für Admins -->
+                    <div class="col-xl-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h4 class="card-title">Ausstehende Aufgaben für Admins</h4>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table table-striped align-middle text-center">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>Partner</th>
+                                                <th>Dokumententyp</th>
+                                                <th>Status</th>
+                                                <th>Aktion</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <% pendingTasks.forEach(task=> { %>
+                                                <tr>
+                                                    <td>
+                                                        <%= task.partner_name %>
+                                                    </td>
+                                                    <td>
+                                                        <%= task.document_type %>
+                                                    </td>
+                                                    <td class="fw-bold text-warning">Offen</td>
+                                                    <td>
+                                                        <a href="/admin/verify-document/<%= task.id %>"
+                                                            class="btn btn-success btn-sm">
+                                                            Prüfen
+                                                        </a>
+                                                    </td>
+                                                </tr>
+                                                <% }) %>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <%- contentFor('script') %>
+                <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+                <% console.log("📊 EJS-Chart Debugging:", successfulPayments, failedPayments); %>
+                    <script>
+                        document.addEventListener("DOMContentLoaded", function () {
+                            var ctx = document.getElementById('paymentStatusChart');
+
+                            if (ctx) {
+                                // Werte sicherstellen, dass sie als Zahlen übergeben werden
+                                var successfulPayments = parseFloat(<%= JSON.stringify(successfulPayments) %>) || 0;
+                                var failedPayments = parseFloat(<%= JSON.stringify(failedPayments) %>) || 0;
+
+                                console.log("📊 Chart-Daten für PaymentStatusChart:", successfulPayments, failedPayments);
+
+                                new Chart(ctx.getContext('2d'), {
+                                    type: 'doughnut',
+                                    data: {
+                                        labels: ["Erfolgreiche Zahlungen", "Fehlgeschlagene Zahlungen"],
+                                        datasets: [{
+                                            data: [successfulPayments, failedPayments],
+                                            backgroundColor: ['#28a745', '#dc3545'],
+                                            borderWidth: 1
+                                        }]
+                                    },
+                                    options: {
+                                        responsive: true,
+                                        plugins: {
+                                            legend: { position: 'top' }
+                                        }
+                                    }
+                                });
+                            } else {
+                                console.error("❌ Canvas-Element für 'paymentStatusChart' nicht gefunden!");
+                            }
+                        });
+                    </script>
+
+
+
+
+                    <!-- Vendor Scripts -->
+                    <script src="assets/vendor/apexchart/apexchart.js"></script>
+                    <script src="assets/vendor/owl-carousel/owl.carousel.js"></script>
+                    <script src="assets/js/custom.min.js"></script>
+                    <script src="assets/js/dlabnav-init.js"></script>
+                    <script src="assets/js/demo.js"></script>

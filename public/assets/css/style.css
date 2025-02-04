@@ -115,7 +115,7 @@
   --text-dark: #312a2a;
   --text-gray: #737B8B;
   --text: #888888;
-  --body-bg: #f3f0f9;
+  --body-bg: #F2F4F5;
   --border: #e6e6e6;
 }
 
@@ -13227,7 +13227,7 @@ label {
   text-align: left;
   position: absolute;
   top: 0;
-  background-color: var(--nav-headbg);
+  background-color: #1A253C;
   transition: all 0.2s ease;
   z-index: 7;
 }
@@ -13421,7 +13421,7 @@ label {
   z-index: 1;
   position: var(--dz-header-pos);
   padding: 0rem;
-  background: var(--headerbg);
+  background: #1A253C;
   z-index: 3;
   top: 0;
   width: 100%;
@@ -13523,7 +13523,7 @@ label {
 .header-left .dashboard_bar {
   font-size: var(--dz-head-title-size);
   font-weight: 700;
-  color: var(--text-dark);
+  color: #fff;
 }
 @media only screen and (max-width: 47.9375rem) {
   .header-left .dashboard_bar {
@@ -20577,7 +20577,7 @@ label {
   --text-dark: #312a2a;
   --text-gray: #737B8B;
   --text: #888888;
-  --body-bg: #f3f0f9;
+  --body-bg: #F2F4F5;
   --border: #e6e6e6;
 }
 
@@ -23247,7 +23247,7 @@ label {
   --text-dark: #312a2a;
   --text-gray: #737B8B;
   --text: #888888;
-  --body-bg: #f3f0f9;
+  --body-bg: #F2F4F5;
   --border: #e6e6e6;
 }
 
@@ -24257,7 +24257,7 @@ button.cancelBtn.btn.btn-sm.btn-inverse:active, .btn-group-sm > button.cancelBtn
   --text-dark: #312a2a;
   --text-gray: #737B8B;
   --text: #888888;
-  --body-bg: #f3f0f9;
+  --body-bg: #F2F4F5;
   --border: #e6e6e6;
 }
 
@@ -24591,7 +24591,7 @@ Fixing Order => Base + Typography >> General Layout + Grid >> Page Layout + Comp
   --text-dark: #312a2a;
   --text-gray: #737B8B;
   --text: #888888;
-  --body-bg: #f3f0f9;
+  --body-bg: #F2F4F5;
   --border: #e6e6e6;
 }
 
@@ -24651,7 +24651,7 @@ Fixing Order => Base + Typography >> General Layout + Grid >> Page Layout + Comp
   --text-dark: #312a2a;
   --text-gray: #737B8B;
   --text: #888888;
-  --body-bg: #f3f0f9;
+  --body-bg: #F2F4F5;
   --border: #e6e6e6;
 }
 
@@ -24722,7 +24722,7 @@ Fixing Order => Base + Typography >> General Layout + Grid >> Page Layout + Comp
   --text-dark: #312a2a;
   --text-gray: #737B8B;
   --text: #888888;
-  --body-bg: #f3f0f9;
+  --body-bg: #F2F4F5;
   --border: #e6e6e6;
 }
 
@@ -26545,8 +26545,7 @@ button:focus {
 }
 
 .btn-primary {
-  border-color: var(--primary);
-  background-color: var(--primary);
+  background-color: #1A253C;
 }
 .btn-primary:active, .btn-primary:focus, .btn-primary:hover {
   border-color: var(--primary-hover);
@@ -30889,7 +30888,7 @@ table.dataTable > tbody > tr.child span.dtr-title {
 }
 
 .tryal-gradient {
-  background: var(--primary);
+  background: #1A253C;
   position: relative;
 }
 .tryal-gradient:after {
@@ -33950,7 +33949,7 @@ input[type=date]::-webkit-calendar-picker-indicator {
   --text-dark: #312a2a;
   --text-gray: #737B8B;
   --text: #888888;
-  --body-bg: #f3f0f9;
+  --body-bg: #F2F4F5;
   --border: #e6e6e6;
 }
 

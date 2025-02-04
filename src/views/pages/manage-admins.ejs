@@ -1,0 +1,53 @@
+<%- contentFor('css') %>
+  <link href="/assets/vendor/owl-carousel/owl.carousel.css" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/vendor/nouislider/nouislider.min.css">
+
+<div class="content-body default-height">
+  <div class="container-fluid">
+    <h2>Partner verwalten</h2>
+
+    <table class="table">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Rolle</th>
+                <th>Aktionen</th>
+            </tr>
+        </thead>
+        <tbody>
+            <% partners.forEach(partner => { %>
+                <tr>
+                    <td><%= partner.id %></td>
+                    <td><%= partner.name %></td>
+                    <td><%= partner.role ? partner.role : 'Kein Admin' %></td>
+                    <td>
+                        <% if (!partner.role) { %>
+                            <form action="/assign-role" method="POST">
+                                <input type="hidden" name="partnerId" value="<%= partner.id %>">
+                                <select name="role" class="form-control">
+                                    <option value="admin">Admin</option>
+                                    <option value="superadmin">Superadmin</option>
+                                    <option value="moderator">Moderator</option>
+                                </select>
+                                <button type="submit" class="btn btn-primary mt-2">Als Admin setzen</button>
+                            </form>
+                        <% } else { %>
+                            <form action="/remove-role" method="POST">
+                                <input type="hidden" name="partnerId" value="<%= partner.id %>">
+                                <button type="submit" class="btn btn-danger">Admin entfernen</button>
+                            </form>
+                        <% } %>
+                    </td>
+                </tr>
+            <% }); %>
+        </tbody>
+    </table>
+  </div>
+</div>
+
+<%- contentFor('script') %>
+<script src="assets/vendor/owl-carousel/owl.carousel.js"></script>
+<script src="assets/js/custom.min.js"></script>
+<script src="assets/js/dlabnav-init.js"></script>
+<script src="assets/js/demo.js"></script>
