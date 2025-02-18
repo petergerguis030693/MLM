@@ -1,253 +1,254 @@
 <%- contentFor('css') %>
-    <link href="assets/vendor/lightgallery/dist/css/lightgallery.css" rel="stylesheet">
-    <link href="assets/vendor/lightgallery/dist/css/lg-thumbnail.css" rel="stylesheet">
-    <link href="assets/vendor/lightgallery/dist/css/lg-zoom.css" rel="stylesheet">
+<link href="assets/vendor/lightgallery/dist/css/lightgallery.css" rel="stylesheet">
+<link href="assets/vendor/lightgallery/dist/css/lg-thumbnail.css" rel="stylesheet">
+<link href="assets/vendor/lightgallery/dist/css/lg-zoom.css" rel="stylesheet">
 
-    <%- contentFor('body') %>
-        <div class="content-body default-height">
-            <div class="container-fluid">
-                <div class="row page-titles">
-                    <ol class="breadcrumb">
-                        <li class="breadcrumb-item"><a href="/">Home</a></li>
-                        <li class="breadcrumb-item active"><a href="/profile">Profil</a></li>
-                    </ol>
-                </div>
+<%- contentFor('body') %>
+<div class="content-body default-height">
+  <div class="container-fluid">
+    <div class="row page-titles">
+      <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="/">Home</a></li>
+        <li class="breadcrumb-item active"><a href="/profile">Profil</a></li>
+      </ol>
+    </div>
 
-                <div class="row">
-                    <div class="col-lg-12">
-                        <div class="profile card card-body px-3 pt-3 pb-0">
-                            <div class="profile-head">
-                                <div class="photo-content">
-                                    <div class="cover-photo rounded"></div>
-                                </div>
-                                <div class="profile-info">
-                                    <div class="profile-details">
-                                        <div class="profile-name px-3 pt-2">
-                                            <h4 class="text-primary mb-0">
-                                                <%= user.name %>
-                                            </h4>
-                                            <p id="userRoleText">
-                                                <%= userRole %>
-                                            </p>
-                                        </div>
-                                        <div class="profile-email px-2 pt-2">
-                                            <h4 class="text-muted mb-0">
-                                                <%= user.email %>
-                                            </h4>
-                                            <p>Email</p>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Profil-Update Formular -->
-                <div class="row">
-                    <div class="col-xl-6">
-                        <div class="card">
-                            <div class="card-body">
-                                <h4 class="text-primary">Persönliche Informationen</h4>
-                                <form id="profileForm">
-                                    <div class="mb-3">
-                                        <label class="form-label">Name</label>
-                                        <input type="text" class="form-control" id="userName" value="<%= user.name %>">
-                                    </div>
-                                    <div class="mb-3">
-                                        <label class="form-label">E-Mail</label>
-                                        <input type="email" class="form-control" id="userEmail"
-                                            value="<%= user.email %>">
-                                    </div>
-                                    <div class="mb-3">
-                                        <label class="form-label">Firmenname</label>
-                                        <input type="text" class="form-control" id="userCompany"
-                                            value="<%= user.firmenname || '' %>">
-                                    </div>
-                                    <div class="mb-3">
-                                        <label class="form-label">Adresse</label>
-                                        <input type="text" class="form-control" id="userAddress"
-                                            value="<%= user.strasse_hausnummer || '' %>">
-                                    </div>
-                                    <div class="mb-3">
-                                        <label class="form-label">PLZ / Ort</label>
-                                        <input type="text" class="form-control" id="userPLZ"
-                                            value="<%= user.plz || '' %>">
-                                        <input type="text" class="form-control mt-2" id="userCity"
-                                            value="<%= user.ort || '' %>">
-                                    </div>
-                                    <button type="button" class="btn btn-primary"
-                                        onclick="updateProfile()">Speichern</button>
-                                </form>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Notizen -->
-                    <div class="col-xl-6">
-                        <div class="card">
-                            <div class="card-body">
-                                <h4 class="text-primary">Eigene Notizen</h4>
-                                <textarea id="userNotes" class="form-control" rows="8"
-                                    placeholder="Hier deine Notizen schreiben..."></textarea>
-                                <button class="btn btn-primary mt-3" onclick="saveNotes()">Speichern</button>
-                                <div id="notesContainer" class="mt-3"></div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div id="editNoteModal" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 400px; height: 400px; background: white; padding: 20px; border-radius: 8px; box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.2);">
-                        <h4>Notiz bearbeiten</h4>
-                        <input type="hidden" id="editNoteId">
-                        <textarea id="editNoteText" class="form-control" rows="8"></textarea>
-                        <br>
-                        <button class="btn btn-primary" onclick="updateNote()">Speichern</button>
-                        <button class="btn btn-secondary" onclick="closeEditModal()">Abbrechen</button>
-                      </div>
-                </div>
+    <div class="row">
+      <div class="col-lg-12">
+        <div class="profile card card-body px-3 pt-3 pb-0">
+          <div class="profile-head">
+            <div class="photo-content">
+              <div class="cover-photo rounded"></div>
             </div>
+            <div class="profile-info">
+              <div class="profile-details">
+                <div class="profile-name px-3 pt-2">
+                  <h4 class="text-primary mb-0">
+                    <%= user.name %>
+                  </h4>
+                  <p id="userRoleText">
+                    <%= userRole %>
+                  </p>
+                </div>
+                <div class="profile-email px-2 pt-2">
+                  <h4 class="text-muted mb-0">
+                    <%= user.email %>
+                  </h4>
+                  <p>Email</p>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
+      </div>
+    </div>
 
-        <%- contentFor('script') %>
-            <script>
-                async function updateProfile() {
-                    const name = document.getElementById("userName").value;
-                    const email = document.getElementById("userEmail").value;
-                    const firmenname = document.getElementById("userCompany").value;
-                    const strasse = document.getElementById("userAddress").value;
-                    const plz = document.getElementById("userPLZ").value;
-                    const ort = document.getElementById("userCity").value;
+    <!-- Profil-Update Formular -->
+    <div class="row">
+      <div class="col-xl-6">
+        <div class="card">
+          <div class="card-body">
+            <h4 class="text-primary">Persönliche Informationen</h4>
+            <form id="profileForm">
+              <div class="mb-3">
+                <label class="form-label">Name</label>
+                <input type="text" class="form-control" id="userName" value="<%= user.name %>">
+              </div>
+              <div class="mb-3">
+                <label class="form-label">E-Mail</label>
+                <input type="email" class="form-control" id="userEmail" value="<%= user.email %>">
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Firmenname</label>
+                <input type="text" class="form-control" id="userCompany" value="<%= user.firmenname || '' %>">
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Adresse</label>
+                <input type="text" class="form-control" id="userAddress" value="<%= user.strasse_hausnummer || '' %>">
+              </div>
+              <div class="mb-3">
+                <label class="form-label">PLZ / Ort</label>
+                <input type="text" class="form-control" id="userPLZ" value="<%= user.plz || '' %>">
+                <input type="text" class="form-control mt-2" id="userCity" value="<%= user.ort || '' %>">
+              </div>
+              <!-- Bankverbindungen -->
+              <div class="mb-3">
+                <span>IBAN: </span><span><%= user.iban || 'keine Angegeben' %></span>
+            </div>
+              <div class="mb-3">
+                <span>SWIFT:</span><span> <%= user.swift_code || 'keine Angegeben' %></span>
+            </div>
+              <button type="button" class="btn btn-primary" onclick="updateProfile()">Speichern</button>
+            </form>
+          </div>
+        </div>
+      </div>
 
-                    const response = await fetch("/profile/update", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ name, email, firmenname, strasse, plz, ort })
-                    });
+      <!-- Notizen -->
+      <div class="col-xl-6">
+        <div class="card">
+          <div class="card-body">
+            <h4 class="text-primary">Eigene Notizen</h4>
+            <textarea id="userNotes" class="form-control" rows="8" placeholder="Hier deine Notizen schreiben..."></textarea>
+            <button class="btn btn-primary mt-3" onclick="saveNotes()">Speichern</button>
+            <div id="notesContainer" class="mt-3"></div>
+          </div>
+        </div>
+      </div>
 
-                    const data = await response.json();
-                    alert(data.message);
-                }
-            </script>
-            <script>
-                document.addEventListener("DOMContentLoaded", function () {
-                    loadNotes();
-                });
+      <div id="editNoteModal" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 400px; height: 400px; background: white; padding: 20px; border-radius: 8px; box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.2);">
+        <h4>Notiz bearbeiten</h4>
+        <input type="hidden" id="editNoteId">
+        <textarea id="editNoteText" class="form-control" rows="8"></textarea>
+        <br>
+        <button class="btn btn-primary" onclick="updateNote()">Speichern</button>
+        <button class="btn btn-secondary" onclick="closeEditModal()">Abbrechen</button>
+      </div>
+    </div>
+  </div>
+</div>
 
-                function saveNotes() {
-                    const noteText = document.getElementById("userNotes").value.trim();
-                    if (!noteText) {
-                        alert("Bitte eine Notiz eingeben!");
-                        return;
-                    }
+<%- contentFor('script') %>
+<script>
+  async function updateProfile() {
+    const name = document.getElementById("userName").value;
+    const email = document.getElementById("userEmail").value;
+    const firmenname = document.getElementById("userCompany").value;
+    const strasse = document.getElementById("userAddress").value;
+    const plz = document.getElementById("userPLZ").value;
+    const ort = document.getElementById("userCity").value;
+    const iban = document.getElementById("userIBAN").value;
+    const swift_code = document.getElementById("userSWIFT").value;
 
-                    let notes;
-                    try {
-                        notes = JSON.parse(localStorage.getItem("userNotes"));
-                        if (!Array.isArray(notes)) throw new Error("Ungültiges Notizen-Format");
-                    } catch (error) {
-                        console.warn("Fehlerhafte Daten in localStorage gefunden. Zurücksetzen...", error);
-                        notes = [];
-                    }
+    const response = await fetch("/profile/update", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, email, firmenname, strasse, plz, ort, iban, swift_code })
+    });
 
-                    const newNote = { id: Date.now(), text: noteText };
-                    notes.push(newNote);
-                    localStorage.setItem("userNotes", JSON.stringify(notes));
-                    document.getElementById("userNotes").value = "";
-                    loadNotes();
-                }
+    const data = await response.json();
+    alert(data.message);
+  }
+</script>
+<script>
+  document.addEventListener("DOMContentLoaded", function () {
+    loadNotes();
+  });
 
-                function loadNotes() {
-                    const notesContainer = document.getElementById("notesContainer");
-                    notesContainer.innerHTML = "";
+  function saveNotes() {
+    const noteText = document.getElementById("userNotes").value.trim();
+    if (!noteText) {
+      alert("Bitte eine Notiz eingeben!");
+      return;
+    }
 
-                    let notes;
-                    try {
-                        notes = JSON.parse(localStorage.getItem("userNotes"));
-                        if (!Array.isArray(notes)) throw new Error("Ungültiges Notizen-Format");
-                    } catch (error) {
-                        console.warn("Fehlerhafte Daten in localStorage gefunden. Zurücksetzen...", error);
-                        notes = [];
-                        localStorage.setItem("userNotes", JSON.stringify(notes));
-                    }
+    let notes;
+    try {
+      notes = JSON.parse(localStorage.getItem("userNotes"));
+      if (!Array.isArray(notes)) throw new Error("Ungültiges Notizen-Format");
+    } catch (error) {
+      console.warn("Fehlerhafte Daten in localStorage gefunden. Zurücksetzen...", error);
+      notes = [];
+    }
 
-                    if (notes.length === 0) {
-                        notesContainer.innerHTML = "<p>Keine Notizen vorhanden.</p>";
-                        return;
-                    }
+    const newNote = { id: Date.now(), text: noteText };
+    notes.push(newNote);
+    localStorage.setItem("userNotes", JSON.stringify(notes));
+    document.getElementById("userNotes").value = "";
+    loadNotes();
+  }
 
-                    const table = document.createElement("table");
-                    table.className = "table table-bordered";
-                    table.innerHTML = `
-        <thead>
-          <tr>
-            <th>#</th>
-            <th>Notiz</th>
-            <th>Aktionen</th>
-          </tr>
-        </thead>
-        <tbody>
-        </tbody>
+  function loadNotes() {
+    const notesContainer = document.getElementById("notesContainer");
+    notesContainer.innerHTML = "";
+
+    let notes;
+    try {
+      notes = JSON.parse(localStorage.getItem("userNotes"));
+      if (!Array.isArray(notes)) throw new Error("Ungültiges Notizen-Format");
+    } catch (error) {
+      console.warn("Fehlerhafte Daten in localStorage gefunden. Zurücksetzen...", error);
+      notes = [];
+      localStorage.setItem("userNotes", JSON.stringify(notes));
+    }
+
+    if (notes.length === 0) {
+      notesContainer.innerHTML = "<p>Keine Notizen vorhanden.</p>";
+      return;
+    }
+
+    const table = document.createElement("table");
+    table.className = "table table-bordered";
+    table.innerHTML = `
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Notiz</th>
+          <th>Aktionen</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    `;
+
+    const tbody = table.querySelector("tbody");
+
+    notes.forEach((note, index) => {
+      const truncatedText = note.text.split(" ").slice(0, 3).join(" ") + "...";
+      const row = document.createElement("tr");
+      row.innerHTML = `
+        <td>${index + 1}</td>
+        <td>${truncatedText}</td>
+        <td>
+          <button class="btn btn-warning btn-sm" onclick="openEditModal(${note.id})">Bearbeiten</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteNote(${note.id})">Löschen</button>
+        </td>
       `;
+      tbody.appendChild(row);
+    });
 
-                    const tbody = table.querySelector("tbody");
+    notesContainer.appendChild(table);
+  }
 
-                    notes.forEach((note, index) => {
-                        const truncatedText = note.text.split(" ").slice(0, 3).join(" ") + "...";
-                        const row = document.createElement("tr");
-                        row.innerHTML = `
-          <td>${index + 1}</td>
-          <td>${truncatedText}</td>
-          <td>
-            <button class="btn btn-warning btn-sm" onclick="openEditModal(${note.id})">Bearbeiten</button>
-            <button class="btn btn-danger btn-sm" onclick="deleteNote(${note.id})">Löschen</button>
-          </td>
-        `;
-                        tbody.appendChild(row);
-                    });
+  function openEditModal(id) {
+    let notes = JSON.parse(localStorage.getItem("userNotes")) || [];
+    const note = notes.find(note => note.id === id);
+    if (!note) return;
 
-                    notesContainer.appendChild(table);
-                }
+    document.getElementById("editNoteId").value = id;
+    document.getElementById("editNoteText").value = note.text;
+    document.getElementById("editNoteModal").style.display = "block";
+  }
 
-                function openEditModal(id) {
-                    let notes = JSON.parse(localStorage.getItem("userNotes")) || [];
-                    const note = notes.find(note => note.id === id);
-                    if (!note) return;
+  function closeEditModal() {
+    document.getElementById("editNoteModal").style.display = "none";
+  }
 
-                    document.getElementById("editNoteId").value = id;
-                    document.getElementById("editNoteText").value = note.text;
-                    document.getElementById("editNoteModal").style.display = "block";
-                }
+  function updateNote() {
+    const id = parseInt(document.getElementById("editNoteId").value);
+    const newText = document.getElementById("editNoteText").value;
 
-                function closeEditModal() {
-                    document.getElementById("editNoteModal").style.display = "none";
-                }
+    let notes = JSON.parse(localStorage.getItem("userNotes")) || [];
+    notes = notes.map(note => note.id === id ? { ...note, text: newText } : note);
+    localStorage.setItem("userNotes", JSON.stringify(notes));
+    closeEditModal();
+    loadNotes();
+  }
 
-                function updateNote() {
-                    const id = parseInt(document.getElementById("editNoteId").value);
-                    const newText = document.getElementById("editNoteText").value;
+  function deleteNote(id) {
+    if (confirm("Bist du sicher, dass du diese Notiz löschen möchtest?")) {
+      let notes = JSON.parse(localStorage.getItem("userNotes")) || [];
+      notes = notes.filter(note => note.id !== id);
+      localStorage.setItem("userNotes", JSON.stringify(notes));
+      loadNotes();
+    }
+  }
+</script>
+<script src="assets/vendor/chart-js/chart.bundle.min.js"></script>
+<!-- Light Gallery -->
+<script src="assets/vendor/lightgallery/dist/lightgallery.min.js"></script>
+<script src="assets/vendor/lightgallery/dist/plugins/thumbnail/lg-thumbnail.min.js"></script>
+<script src="assets/vendor/lightgallery/dist/plugins/zoom/lg-zoom.min.js"></script>
 
-                    let notes = JSON.parse(localStorage.getItem("userNotes")) || [];
-                    notes = notes.map(note => note.id === id ? { ...note, text: newText } : note);
-                    localStorage.setItem("userNotes", JSON.stringify(notes));
-                    closeEditModal();
-                    loadNotes();
-                }
-
-                function deleteNote(id) {
-                    if (confirm("Bist du sicher, dass du diese Notiz löschen möchtest?")) {
-                        let notes = JSON.parse(localStorage.getItem("userNotes")) || [];
-                        notes = notes.filter(note => note.id !== id);
-                        localStorage.setItem("userNotes", JSON.stringify(notes));
-                        loadNotes();
-                    }
-                }
-            </script>
-            <script src="assets/vendor/chart-js/chart.bundle.min.js"></script>
-            <!-- Light Gallery -->
-            <script src="assets/vendor/lightgallery/dist/lightgallery.min.js"></script>
-            <script src="assets/vendor/lightgallery/dist/plugins/thumbnail/lg-thumbnail.min.js"></script>
-            <script src="assets/vendor/lightgallery/dist/plugins/zoom/lg-zoom.min.js"></script>
-
-            <script src="assets/js/custom.min.js"></script>
-            <script src="assets/js/dlabnav-init.js"></script>
-            <script src="assets/js/demo.js"></script>
+<script src="assets/js/custom.min.js"></script>
+<script src="assets/js/dlabnav-init.js"></script>
+<script src="assets/js/demo.js"></script>

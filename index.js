@@ -121,8 +121,6 @@ app.use(
   })
 );
 
-
-
 app.use((req, res, next) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
   next();
@@ -147,19 +145,6 @@ app.use((req, res, next) => {
   next();
 });
 
-
-
-// Debugging-Middleware
-//app.use((req, res, next) => {
-// console.log('--- Debugging Start ---');
-// console.log('Headers:', req.headers);
-// console.log('Content-Type:', req.headers['content-type']);
-// console.log('Method:', req.method);
-// if (req.body) console.log('Body:', req.body);
-// if (req.files) console.log('Files:', req.files);
-// console.log('--- Debugging Ende ---');
-// next();
-//});
 
 const privateKey = fs.readFileSync("/etc/letsencrypt/live/vertrieb.smarttech-connection.com/privkey.pem", "utf8");
 const certificate = fs.readFileSync("/etc/letsencrypt/live/vertrieb.smarttech-connection.com/cert.pem", "utf8");
@@ -274,10 +259,6 @@ app.post("/insert-payment", async (req, res) => {
     res.status(500).json({ error: "Datenbankfehler", details: err.message });
   }
 });
-
-
-
-
 
 // ========================= Importierte Routen =========================
 app.use('/', routes);

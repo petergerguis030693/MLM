@@ -13,7 +13,7 @@ const login = async (req, res) => {
 
   try {
     const [user] = await db.query(
-      'SELECT id, username, email, password, name FROM partners WHERE email = ? OR username = ?',
+      'SELECT id, username, email, password, name FROM partners WHERE (email = ? OR username = ?) AND is_active = "1"',
       [username, username]
     );
 

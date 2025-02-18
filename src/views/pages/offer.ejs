@@ -1,0 +1,62 @@
+<%- contentFor('body') %>
+    <div class="content-body default-height">
+        <div class="container-fluid">
+            <div class="row">
+                <h3>Angebot Hochladen</h3>
+
+                <form id="uploadForm">
+                    <label for="partner_id">Partner ID:</label>
+                    <input type="number" id="partner_id" name="partner_id" required>
+
+                    <label for="name">Kundenname:</label>
+                    <input type="text" id="name" name="name" required>
+
+                    <label for="email">Kunden-E-Mail:</label>
+                    <input type="email" id="email" name="email" required>
+
+                    <label for="phone">Telefon:</label>
+                    <input type="text" id="phone" name="phone">
+
+                    <label for="address">Adresse:</label>
+                    <textarea id="address" name="address"></textarea>
+
+                    <label for="file">Angebot (PDF):</label>
+                    <input type="file" id="file" name="file" accept="application/pdf" required>
+
+                    <br><br>
+                    <button type="submit">Hochladen & Senden</button>
+                </form>
+
+                <div id="responseMessage" style="margin-top: 20px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <%- contentFor('script') %>
+        <script>
+            document.getElementById("uploadForm").addEventListener("submit", async function (event) {
+                event.preventDefault();
+
+                const formData = new FormData();
+                formData.append("partner_id", document.getElementById("partner_id").value);
+                formData.append("name", document.getElementById("name").value);
+                formData.append("email", document.getElementById("email").value);
+                formData.append("phone", document.getElementById("phone").value);
+                formData.append("address", document.getElementById("address").value);
+                formData.append("file", document.getElementById("file").files[0]);
+
+                const response = await fetch("/upload-offer", {
+                    method: "POST",
+                    body: formData
+                });
+
+                const result = await response.json();
+                document.getElementById("responseMessage").innerText = result.message;
+            });
+        </script>
+        <%- contentFor('script') %>
+            <script src="/assets/vendor/owl-carousel/owl.carousel.js"></script>
+            <script src="/assets/js/custom.min.js"></script>
+            <script src="/assets/js/dlabnav-init.js"></script>
+            <script src="/assets/js/demo.js"></script>
+            <script src="https://cdnjs.cloudflare.com/ajax/libs/signature_pad/4.0.0/signature_pad.umd.min.js"></script>

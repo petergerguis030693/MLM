@@ -28,6 +28,7 @@ const { adminLogin, adminLogout } = require('../controllers/adminpanel-login');
 const puppeteer = require('puppeteer'); // Für automatisierte Browseraktionen
 const nodemailer = require('nodemailer'); // Für E-Mail-Versand
 const stripe = require('stripe')('sk_test_51BP6CEL5p3sufeDWIvBGj7pXZX7QHSlroDpLgBkGFX1HMHi2BMVRFSrYU8uOqZXidQrzviC3E3vYaaVKy3Q0H2Ny00EvAFzu3R'); // Für Zahlungsabwicklung
+const { v4: uuidv4 } = require('uuid');
 
 // Speicherort und Konfiguration für Datei-Uploads
 const storage = multer.diskStorage({
@@ -121,6 +122,337 @@ const products = [
   },
 ];
 
+
+const PDFDocument = require('pdfkit');
+function generateInvoice(order, callback) {
+  // Neues PDF-Dokument erstellen
+  const doc = new PDFDocument({ size: 'A4', margin: 50 });
+  const buffers = [];
+
+  // PDF-Daten sammeln
+  doc.on('data', buffers.push.bind(buffers));
+  doc.on('end', () => {
+    const pdfData = Buffer.concat(buffers);
+    callback(null, pdfData);
+  });
+
+  // Kopfzeile: Logo und Firmeninformationen
+  try {
+    // Logo (Pfad anpassen oder entfernen, falls nicht vorhanden)
+    doc.image('/assets/images/weblogo.svg', 50, 45, { width: 50 });
+  } catch (err) {
+    console.warn('Logo nicht gefunden.');
+  }
+  doc
+    .fontSize(20)
+    .text('Herando A.S.', 110, 57)
+    .fontSize(10)
+    .text('Aktiengesellschaft Herando (a.s.)', 200, 65, { align: 'right' })
+    .text('V Jámě 1/699', 200, 80, { align: 'right' })
+    .text('110 00 Prag 1', 200, 100, { align: 'right' })
+    .moveDown();
+
+  // Rechnungstitel und -details
+  doc
+    .fontSize(20)
+    .text('Rechnung', 50, 150)
+    .fontSize(10)
+    .text(`Rechnungsnummer: ${order.order_number}`, 50, 170)
+    .text(`Rechnungsdatum: ${new Date(order.created_at).toLocaleDateString()}`, 50, 185)
+    .moveDown();
+
+  // Rechnungsadresse (Empfänger)
+  doc
+    .fontSize(10)
+    .text('Rechnung an:', 50, 220)
+    .text(order.email, 50, 235)
+    .moveDown();
+
+  // Artikelübersicht / Tabelle
+  doc
+    .fontSize(10)
+    .text('Produkt', 50, 300)
+    .text('Betrag', 400, 300, { align: 'right' });
+  doc.moveTo(50, 315).lineTo(550, 315).stroke();
+
+  // Eine einzelne Artikelzeile (bei Bedarf kann hier eine Schleife für mehrere Positionen eingebaut werden)
+  doc
+    .fontSize(10)
+    .text(order.product, 50, 330)
+    .text(`${order.amount} EUR`, 400, 330, { align: 'right' });
+  doc.moveTo(50, 350).lineTo(550, 350).stroke();
+
+  // Gesamtsumme
+  doc
+    .font('Helvetica-Bold')
+    .text('Gesamt', 50, 370)
+    .text(`${order.amount} EUR`, 400, 370, { align: 'right' });
+
+  // Footer
+  doc
+    .fontSize(10)
+    .font('Helvetica')
+    .text('Vielen Dank für Ihren Auftrag!', 50, 750, { align: 'center', width: 500 });
+
+  // PDF abschließen
+  doc.end();
+}
+
+// ---------------------------
+// Hilfsfunktion: Rechnung generieren und per E-Mail versenden
+// ---------------------------
+function generateInvoiceAndSendEmail(order) {
+  generateInvoice(order, (err, pdfData) => {
+    if (err) {
+      console.error('Fehler bei der Rechnungserstellung:', err);
+      return;
+    }
+
+    // SMTP-Konfiguration (hier wird Gmail verwendet; passe das an deinen SMTP-Provider an)
+
+    const transporter = nodemailer.createTransport({
+      host: "smtp.forpsi.com",
+      port: 465,
+      secure: true,
+      auth: {
+        user: "pg@herando.com",
+        pass: "!Wert74521",
+      },
+    });
+
+    const mailOptions = {
+      from: 'pg@herando.com',
+      to: order.email, // Empfängeradresse (aus dem Order-Datensatz)
+      subject: 'Ihre Partnerlizenz-Rechnung',
+      text: 'Vielen Dank für die Zahlung an Herando und Interesse an unserem Partnerprogramm! <br>Im Anhang finden Sie Ihre Rechnung für Ihre Partnerlizenz.',
+      attachments: [
+        {
+          filename: 'rechnung.pdf',
+          content: pdfData
+        }
+      ]
+    };
+
+    transporter.sendMail(mailOptions, (error, info) => {
+      if (error) {
+        console.error('Fehler beim Versenden der Rechnung:', error);
+      } else {
+        console.log('Rechnung erfolgreich per E-Mail versendet:', info.response);
+      }
+    });
+  });
+}
+
+//---------------------------------------***************----------------------------------//
+
+// Angebot hochladen und in der DB speichern
+router.post('/upload-offer', upload.single('file'), async (req, res) => {
+  try {
+    const { partner_id, name, email, phone, address } = req.body;
+    if (!req.file) {
+      return res.status(400).send('Angebots-PDF nicht hochgeladen');
+    }
+
+    const tempPath = req.file.path;
+    // Erzeuge einen eindeutigen Dateinamen, z. B. "angebot-<uuid>.pdf"
+    const offerFilename = `angebot-${uuidv4()}.pdf`;
+    const targetPath = path.join(__dirname, 'public', offerFilename);
+    await fs.promises.rename(tempPath, targetPath);
+
+    // Kunde in der DB anlegen
+    db.query(
+      'INSERT INTO customers (partner_id, name, email, phone, address, status) VALUES (?, ?, ?, ?, ?, ?)',
+      [partner_id, name, email, phone, address, 'lead'],
+      (err, result) => {
+        if (err) {
+          console.error('Fehler beim Speichern des Kunden:', err);
+          return res.status(500).send('Datenbankfehler bei Kundenanlage');
+        }
+        // Angebot in der DB anlegen
+        db.query(
+          'INSERT INTO offer (email, pdf_path, status) VALUES (?, ?, ?)',
+          [email, `/${offerFilename}`, 'pending'],
+          (err, result) => {
+            if (err) {
+              console.error('Fehler beim Speichern des Angebots:', err);
+              return res.status(500).send('Datenbankfehler bei Angebotserstellung');
+            }
+            // E-Mail an den Kunden versenden
+            sendOfferToCustomer(email, targetPath);
+            return res.json({ message: 'Kunde und Angebot erfolgreich gespeichert und per E-Mail versendet' });
+          }
+        );
+      }
+    );
+  } catch (error) {
+    console.error('Error in /upload-offer:', error);
+    return res.status(500).send('Interner Serverfehler');
+  }
+});
+
+
+// Seite für den Kunden zum Unterschreiben
+router.get('/angebot/:email', (req, res) => {
+  const email = req.params.email;
+  db.query('SELECT * FROM offer WHERE email = ? AND status = "pending"', [email], (err, results) => {
+    if (err) {
+      console.error('Datenbankfehler:', err);
+      return res.status(500).send('Datenbankfehler');
+    }
+    if (results.length === 0) {
+      return res.status(404).send('Kein Angebot gefunden');
+    }
+    const offer = results[0];
+    res.render('pages/angebot', {
+      pdfPath: offer.pdf_path,
+      headerTitle: 'Angebot unterschreiben',
+      login_user: req.user,
+      currentUrl: req.url,
+      admin_role: req.user ? req.user.role : 'guest',
+      offerEmail: offer.email  // Wird im Frontend benötigt, um die E-Mail zu übermitteln
+    });
+  });
+});
+
+// Kunde unterschreibt und erhält das unterschriebene Angebot zurück
+router.post('/save-signature', async (req, res) => {
+  try {
+    const { signature, email } = req.body;
+    if (!signature) {
+      return res.status(400).send('Keine Signatur erhalten');
+    }
+    // Basis64-Daten in ein Bild schreiben – eindeutiger Dateiname
+    const base64Data = signature.replace(/^data:image\/png;base64,/, "");
+    const signatureFilename = `signature-${uuidv4()}.png`;
+    const signaturePath = path.join(__dirname, 'public', signatureFilename);
+    await fs.promises.writeFile(signaturePath, base64Data, 'base64');
+
+    // Hole das Angebot aus der Datenbank
+    db.query('SELECT * FROM offer WHERE email = ?', [email], async (err, results) => {
+      if (err) {
+        console.error('Datenbankfehler:', err);
+        return res.status(500).send('Datenbankfehler');
+      }
+      if (results.length === 0) {
+        return res.status(404).send('Angebots-PDF nicht gefunden');
+      }
+      try {
+        const offer = results[0];
+        const offerPdfPath = path.join(__dirname, 'public', offer.pdf_path);
+        const existingPdfBytes = await fs.promises.readFile(offerPdfPath);
+        const pdfDoc = await PDFDocument.load(existingPdfBytes);
+        const pages = pdfDoc.getPages();
+        const lastPage = pages[pages.length - 1];
+
+        // Signatur-Bild einbetten
+        const signatureImageBytes = await fs.promises.readFile(signaturePath);
+        const signatureImage = await pdfDoc.embedPng(signatureImageBytes);
+        lastPage.drawImage(signatureImage, {
+          x: 150,
+          y: 50,
+          width: 100,
+          height: 50,
+        });
+
+        // Erzeuge einen eindeutigen Dateinamen für das unterschriebene Angebot
+        const signedPdfFilename = `signed_offer-${uuidv4()}.pdf`;
+        const signedPdfPath = path.join(__dirname, 'public', signedPdfFilename);
+        const signedPdfBytes = await pdfDoc.save();
+        await fs.promises.writeFile(signedPdfPath, signedPdfBytes);
+
+        // Angebot in der DB aktualisieren (Status und PDF-Pfad)
+        db.query(
+          'UPDATE offer SET status = "signed", pdf_path = ? WHERE email = ?',
+          [`/${signedPdfFilename}`, email],
+          (err, result) => {
+            if (err) {
+              console.error('Datenbankfehler beim Aktualisieren des Angebots:', err);
+              return res.status(500).send('Datenbankfehler bei Aktualisierung');
+            }
+            // Versenden des unterschriebenen Angebots per E-Mail an den Partner
+            sendSignedOffer(email, signedPdfPath);
+            return res.json({ message: 'Signatur in PDF eingefügt und Kunde aktualisiert', pdfPath: `/${signedPdfFilename}` });
+          }
+        );
+      } catch (pdfError) {
+        console.error('Fehler beim Bearbeiten des PDFs:', pdfError);
+        return res.status(500).send('Fehler beim Bearbeiten des PDFs');
+      }
+    });
+  } catch (error) {
+    console.error('Error in /save-signature:', error);
+    return res.status(500).send('Interner Serverfehler');
+  }
+});
+
+// Formular zum Hochladen eines Angebots anzeigen
+router.get('/upload-offer', (req, res) => {
+  res.render('pages/offer', {
+    headerTitle: 'Angebot Hochladen',
+    login_user: req.user,
+    currentUrl: req.url,
+    userRole: req.user ? req.user.role : 'guest'
+  });
+});
+
+
+// Versenden der E-Mails (wie gehabt)
+function sendOfferToCustomer(email, pdfPath) {
+  const transporter = nodemailer.createTransport({
+    host: "smtp.forpsi.com",
+    port: 465,
+    secure: true,
+    auth: {
+      user: "pg@herando.com",
+      pass: "!Wert74521"
+    }
+  });
+
+  const mailOptions = {
+    from: 'pg@herando.com',
+    to: email,
+    subject: 'Ihr Angebot zur Unterschrift',
+    text: `Bitte öffnen Sie den folgenden Link, um Ihr Angebot zu unterschreiben: http://vertrieb.smarttech-connection.com:3002/angebot/${email}`,
+    attachments: [{ filename: path.basename(pdfPath), path: pdfPath }]
+  };
+
+  transporter.sendMail(mailOptions, (error, info) => {
+    if (error) {
+      console.error('Fehler beim Senden der E-Mail:', error);
+    } else {
+      console.log('E-Mail gesendet:', info.response);
+    }
+  });
+}
+
+function sendSignedOffer(email, pdfPath) {
+  const transporter = nodemailer.createTransport({
+    host: "smtp.forpsi.com",
+    port: 465,
+    secure: true,
+    auth: {
+      user: "pg@herando.com",
+      pass: "!Wert74521"
+    }
+  });
+
+  const mailOptions = {
+    from: 'pg@herando.com',
+    to: 'partner@herando.com',
+    subject: `Unterschriebenes Angebot von ${email}`,
+    text: 'Der Kunde hat das Angebot unterschrieben. Das unterschriebene Dokument ist beigefügt.',
+    attachments: [{ filename: path.basename(pdfPath), path: pdfPath }]
+  };
+
+  transporter.sendMail(mailOptions, (error, info) => {
+    if (error) {
+      console.error('Fehler beim Senden der E-Mail:', error);
+    } else {
+      console.log('E-Mail gesendet:', info.response);
+    }
+  });
+}
+//---------------------------------------***************----------------------------------//
 router.get('/products', async (req, res) => {
   try {
     // Admin-Rolle abrufen
@@ -344,6 +676,73 @@ router.get('/registration-success', async (req, res) => {
 router.use((req, res, next) => {
   res.locals.currentUrl = req.url;
   next();
+});
+
+function buildTree(rows, rootSponsorId) {
+  const nodes = {};
+  const tree = [];
+
+  // Erstelle eine Map der Knoten; jsTree erwartet: id, text (als Label) und children (Array)
+  rows.forEach(row => {
+    nodes[row.id] = {
+      id: row.id.toString(),
+      text: row.name,
+      sponsor_id: row.sponsor_id,
+      level: row.level,
+      children: []
+    };
+  });
+
+  // Baum aufbauen: Für jeden Datensatz, wenn der sponsor_id-Wert dem root entspricht, ist er ein direkter Kindknoten,
+  // andernfalls als Kind des entsprechenden übergeordneten Knotens einordnen.
+  rows.forEach(row => {
+    if (row.sponsor_id == rootSponsorId) {
+      tree.push(nodes[row.id]);
+    } else if (nodes[row.sponsor_id]) {
+      nodes[row.sponsor_id].children.push(nodes[row.id]);
+    }
+  });
+
+  return tree;
+}
+
+// Route: Partnerbaum abrufen
+router.get('/partner-tree', async (req, res) => {
+  try {
+    // Angenommen, der eingeloggte Partner ist in der Session gespeichert
+    const userId = req.session.userId;
+    if (!userId) {
+      return res.status(401).json({ error: 'Benutzer nicht authentifiziert.' });
+    }
+
+    // Rekursive Query: Beginne mit allen Partnern, die direkt von userId betreut werden,
+    // und erweitere den Baum bis zu Level 16.
+    const [rows] = await db.query(`
+      WITH RECURSIVE PartnerTree AS (
+        SELECT id, name, sponsor_id, 1 AS level
+        FROM partners
+        WHERE sponsor_id = ?
+
+        UNION ALL
+
+        SELECT p.id, p.name, p.sponsor_id, pt.level + 1
+        FROM partners p
+        INNER JOIN PartnerTree pt ON p.sponsor_id = pt.id
+        WHERE pt.level < 16
+      )
+      SELECT * FROM PartnerTree
+      ORDER BY level, id;
+    `, [userId]);
+
+    // Erstelle den Baum im jsTree-Format
+    const tree = buildTree(rows, userId);
+
+    // Sende den Baum als JSON zurück
+    res.json(tree);
+  } catch (error) {
+    console.error("Fehler beim Erstellen des Partnerbaums:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
 });
 
 
@@ -675,6 +1074,86 @@ router.get('/admin/partner/:id/debit-card', async (req, res) => {
 
 
 
+const uploadDir = path.join(__dirname, '../uploads/library');
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+// Route für Upload-Seite (Admin-Bereich)
+router.get('/admin/uploads', async (req, res) => {
+  if (!req.user || req.user.role !== 'admin') return res.redirect('/login');
+
+  const [files] = await db.execute('SELECT * FROM library_files ORDER BY uploaded_at DESC');
+  res.render('uploads_admin', { files, login_user: req.user, currentUrl: req.url, headerTitle: 'Dateien hochladen' });
+});
+
+// Datei-Upload-Route (Nur Admin)
+router.post('/admin/uploads', upload.single('file'), async (req, res) => {
+  if (!req.user || req.user.role !== 'admin') return res.redirect('/login');
+
+  if (!req.file) {
+    return res.status(400).send('Keine Datei hochgeladen!');
+  }
+
+  const { originalname, filename } = req.file;
+  const filePath = `/uploads/library/${filename}`;
+
+  await db.execute('INSERT INTO library_files (file_name, file_path, uploaded_by, partner_id) VALUES (?, ?, ?, ?)',
+    [originalname, filePath, req.user.id, req.user.partnerId]);
+
+  res.redirect('/admin/uploads');
+});
+
+// Datei-Download (Nur registrierte User)
+router.get('/uploads/:fileId', async (req, res) => {
+  if (!req.user) return res.redirect('/login');
+
+  const [file] = await db.execute('SELECT * FROM library_files WHERE id = ?', [req.params.fileId]);
+  if (!file.length) return res.status(404).send('Datei nicht gefunden');
+
+  const filePath = path.join(__dirname, '..', file[0].file_path);
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).send('Die Datei existiert nicht auf dem Server.');
+  }
+
+  res.download(filePath);
+});
+
+router.get('/admin/uploads/edit/:id', async (req, res) => {
+  if (!req.user || req.user.role !== 'admin') return res.redirect('/login');
+
+  const [file] = await db.execute('SELECT * FROM library_files WHERE id = ?', [req.params.id]);
+  if (!file.length) return res.status(404).send('Datei nicht gefunden');
+
+  res.render('edit_upload', { file: file[0], login_user: req.user, currentUrl: req.url, headerTitle: 'Datei bearbeiten' });
+});
+
+router.post('/admin/uploads/edit/:id', async (req, res) => {
+  if (!req.user || req.user.role !== 'admin') return res.redirect('/login');
+
+  const { newFileName } = req.body;
+  if (!newFileName) return res.status(400).send('Dateiname darf nicht leer sein');
+
+  await db.execute('UPDATE library_files SET file_name = ? WHERE id = ?', [newFileName, req.params.id]);
+  res.redirect('/admin/uploads');
+});
+
+// Datei löschen - Admin Route
+router.get('/admin/uploads/delete/:id', async (req, res) => {
+  if (!req.user || req.user.role !== 'admin') return res.redirect('/login');
+
+  const [file] = await db.execute('SELECT * FROM library_files WHERE id = ?', [req.params.id]);
+  if (!file.length) return res.status(404).send('Datei nicht gefunden');
+
+  const filePath = path.join(__dirname, '..', file[0].file_path);
+  if (fs.existsSync(filePath)) {
+    fs.unlinkSync(filePath);
+  }
+
+  await db.execute('DELETE FROM library_files WHERE id = ?', [req.params.id]);
+  res.redirect('/admin/uploads');
+});
+
 /////////////////////////////////////////////////////////////Testen/////////////////////////////////////////////
 router.get('/invite-partner', async (req, res) => {
   try {
@@ -683,11 +1162,14 @@ router.get('/invite-partner', async (req, res) => {
       [req.session.userId]
     );
 
+    const partnerid = req.session.userId;
+
     const userRole = adminRole.length ? adminRole[0].role : 'partner';
 
     res.render('pages/invite-partner', {
       headerTitle: 'Partner einladen',
       login_user: req.user || 'Gast',
+      partnerid,
       currentUrl: req.url,
       userRole
     });
@@ -701,19 +1183,51 @@ router.post('/send-partner-invite', async (req, res) => {
   const { firstName, lastName, email, sponsorId } = req.body;
 
   try {
+    // Überprüfen, ob bereits ein Partner mit dieser E-Mail existiert
     const [existingUser] = await db.query('SELECT * FROM partners WHERE email = ?', [email]);
     if (existingUser.length > 0) {
-      return res.status(400).send('Diese E-Mail ist bereits registriert.');
+      return res.status(400).send(`
+        <!DOCTYPE html>
+        <html lang="de">
+          <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <title>Registrierung fehlgeschlagen</title>
+            <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+          </head>
+          <body class="bg-light">
+            <div class="container">
+              <div class="row justify-content-center mt-5">
+                <div class="col-md-8">
+                  <div class="card shadow">
+                    <div class="card-body text-center">
+                      <h1 class="card-title">Registrierung fehlgeschlagen</h1>
+                      <p class="card-text">Diese E-Mail ist bereits registriert.</p>
+                      <a href="/" class="btn btn-primary">Zurück zur Startseite</a>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+            <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.2/dist/js/bootstrap.bundle.min.js"></script>
+          </body>
+        </html>
+      `);
     }
 
+    // Neuen Partner einfügen; sponsorId wird dabei mit gespeichert
     const [result] = await db.query(
       'INSERT INTO partners (name, email, sponsor_id, license_paid, is_active, registration_verified) VALUES (?, ?, ?, 0, 0, 0)',
       [`${firstName} ${lastName}`, email, sponsorId]
     );
 
     const partnerId = result.insertId;
-    const registrationLink = `${req.protocol}://${req.get('host')}/registration?partnerId=${partnerId}`;
+    // Registrierungslink erweitert um beide Parameter: partnerId und sponsorId
+    const registrationLink = `${req.protocol}://${req.get('host')}/registration?partnerId=${partnerId}&sponsorId=${sponsorId}`;
 
+    // E-Mail-Versand konfigurieren (Beispiel SMTP-Server)
     const transporter = nodemailer.createTransport({
       host: 'smtp.forpsi.com',
       port: 465,
@@ -724,18 +1238,93 @@ router.post('/send-partner-invite', async (req, res) => {
       },
     });
 
+    // Einladung per E-Mail senden
     await transporter.sendMail({
       from: '"Herando Team" <pg@herando.com>',
       to: email,
       subject: 'Einladung zum Partnerprogramm',
       html: `
-        <p>Sehr geehrte(r) ${firstName} ${lastName},</p>
-        <p>Bitte schließen Sie die Registrierung über folgenden Link ab:</p>
-        <a href="${registrationLink}" style="background: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Registrierung starten</a>
+        <!DOCTYPE html>
+        <html lang="de">
+          <head>
+            <meta charset="UTF-8" />
+            <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+            <title>Einladung zum Partnerprogramm</title>
+          </head>
+          <body style="margin:0; padding:0; background-color:#f2f2f2;">
+            <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%">
+              <tr>
+                <td align="center" style="padding:20px 0;">
+                  <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="600" style="border:1px solid #e0e0e0; background-color:#ffffff; border-radius: 8px; overflow:hidden;">
+                    <!-- Header -->
+                    <tr>
+                      <td align="center" style="background-color:#007bff; padding: 40px 0;">
+                        <img src="https://herando.com/logo.png" alt="Herando Logo" width="200" style="display:block;" />
+                      </td>
+                    </tr>
+                    <!-- Inhalt -->
+                    <tr>
+                      <td style="padding: 40px 30px; font-family:Arial, sans-serif; color:#153643;">
+                        <h1 style="font-size:24px; margin:0 0 20px 0;">Einladung zum Partnerprogramm</h1>
+                        <p style="font-size:16px; line-height:1.5; margin:0 0 30px 0;">
+                          Sehr geehrte(r) ${firstName} ${lastName},<br/><br/>
+                          Sie wurden herzlich eingeladen, Teil unseres exklusiven Partnerprogramms zu werden.
+                          Wir freuen uns darauf, Sie in unserem Team willkommen zu heißen.
+                          Bitte klicken Sie auf den Button unten, um Ihre Registrierung abzuschließen.
+                        </p>
+                        <p style="text-align:center;">
+                          <a href="${registrationLink}" style="background-color:#28a745; color:#ffffff; padding:15px 25px; text-decoration:none; border-radius:5px; font-size:16px; font-family:Arial, sans-serif; display:inline-block;">
+                            Registrierung starten
+                          </a>
+                        </p>
+                      </td>
+                    </tr>
+                    <!-- Footer -->
+                    <tr>
+                      <td style="background-color:#f2f2f2; padding: 30px; font-family:Arial, sans-serif; font-size:12px; color:#777777; text-align:center;">
+                        © 2025 Herando. Alle Rechte vorbehalten.<br/>
+                        Herando Team, Firmenstraße 1, 12345 Stadt
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+            </table>
+          </body>
+        </html>
       `,
     });
 
-    res.status(201).send('Einladungs-E-Mail erfolgreich gesendet.');
+    // Erfolgreiche Antwort an den Browser
+    res.status(201).send(`
+      <!DOCTYPE html>
+      <html lang="de">
+        <head>
+          <meta charset="UTF-8" />
+          <meta name="viewport" content="width=device-width, initial-scale=1" />
+          <title>Einladung gesendet</title>
+          <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+        </head>
+        <body class="bg-light">
+          <div class="container">
+            <div class="row justify-content-center mt-5">
+              <div class="col-md-8">
+                <div class="card shadow">
+                  <div class="card-body text-center">
+                    <h1 class="card-title">Einladung gesendet!</h1>
+                    <p class="card-text">Die Einladungs-E-Mail wurde erfolgreich versendet.</p>
+                    <a href="/" class="btn btn-primary">Zurück zur Startseite</a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+          <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.2/dist/js/bootstrap.bundle.min.js"></script>
+        </body>
+      </html>
+    `);
   } catch (error) {
     console.error('Fehler beim Senden der Einladung:', error);
     res.status(500).send('Ein Fehler ist aufgetreten.');
@@ -744,25 +1333,68 @@ router.post('/send-partner-invite', async (req, res) => {
 
 // 2. Registrierung starten
 router.get('/registration', async (req, res) => {
-  const { partnerId, step } = req.query;
+  // Lese partnerId und optional sponsorId aus der Query
+  const { partnerId, sponsorId, step } = req.query;
+
+  // Es wird nur geprüft, ob partnerId vorhanden ist.
+  if (!partnerId) {
+    return res.status(400).send(`
+      <!DOCTYPE html>
+      <html lang="de">
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1">
+          <title>Registrierungsfehler</title>
+          <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+        </head>
+        <body class="bg-light">
+          <div class="container">
+            <div class="row justify-content-center mt-5">
+              <div class="col-md-8">
+                <div class="card shadow">
+                  <div class="card-body text-center">
+                    <h1 class="card-title text-danger">Registrierungsfehler</h1>
+                    <p class="card-text">Der erforderliche Parameter "partnerId" fehlt.</p>
+                    <a href="/" class="btn btn-primary">Zurück zur Startseite</a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+          <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.5.2/dist/js/bootstrap.bundle.min.js"></script>
+        </body>
+      </html>
+    `);
+  }
 
   try {
+    // Den Partner anhand der partnerId aus der Datenbank abrufen
     const [partner] = await db.query('SELECT * FROM partners WHERE id = ?', [partnerId]);
     if (partner.length === 0) {
       return res.status(404).send('Ungültiger Registrierungslink.');
     }
 
-    const [adminRole] = await db.execute(
-      'SELECT role FROM admin_roles WHERE partnerId = ?',
-      [req.session.userId]
-    );
+    // Falls sponsorId nicht in der URL übergeben wurde, nutze den in der Datenbank gespeicherten Wert
+    const finalSponsorId = sponsorId || partner[0].sponsor_id;
 
-    const userRole = adminRole.length ? adminRole[0].role : 'partner';
+    // Ermitteln der Benutzerrolle (nur wenn eine Session vorhanden ist)
+    let userRole = 'partner';
+    if (req.session && req.session.userId) {
+      const [adminRole] = await db.execute(
+        'SELECT role FROM admin_roles WHERE partnerId = ?',
+        [req.session.userId]
+      );
+      if (adminRole && adminRole.length > 0) {
+        userRole = adminRole[0].role;
+      }
+    }
 
+    // Registrierungsseite rendern und beide Parameter übergeben
     res.render('pages/partner-registration', {
       partnerId,
+      sponsorId: finalSponsorId,
       userRole,
-      sponsorId: partner[0].sponsor_id,
       headerTitle: 'Registrierung',
       login_user: req.user || 'Gast',
       currentUrl: req.url,
@@ -776,7 +1408,7 @@ router.get('/registration', async (req, res) => {
 
 // 3. Registrierung abschließen
 router.post('/complete-registration', async (req, res) => {
-  const { partnerId, username, password, country, firmenname, rechtsform, strasse_hausnummer, plz, ort, umsatzsteuer_id } = req.body;
+  const { partnerId, username, password, country, firmenname, rechtsform, strasse_hausnummer, plz, ort, umsatzsteuer_id, cardnamen, swiftcode, iban } = req.body;
 
   try {
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -792,6 +1424,10 @@ router.post('/complete-registration', async (req, res) => {
       VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [partnerId, firmenname || null, rechtsform, strasse_hausnummer, plz, ort, umsatzsteuer_id || null]
     );
+
+    await db.query(`INSERT INTO cards
+    (partner_id, card_type, card_holder_name, swift_code, iban) VALUES (?, ?, ? , ?, ?)`, 
+    [partnerId, 'debit', cardnamen, swiftcode, iban ]);
 
     // Weiterleitung zu Schritt 2
     res.redirect(`/registration?partnerId=${partnerId}&step=2`);
@@ -932,41 +1568,46 @@ router.get('/payment-success', async (req, res) => {
       const amountPaid = session.amount_total / 100;
 
       // Zahlung in der `payments`-Tabelle speichern
-      await db.query(
+      const [paymentResult] = await db.query(
         'INSERT INTO payments (email, partner_id, amount, payment_status, commission_payout) VALUES (?, ?, ?, ?, ?)',
-        [email, sponsor_id, amountPaid, 'success', 0] // `sponsor_id` wird hier korrekt verwendet
+        [email, sponsor_id, amountPaid, 'success', 0]
       );
+      const paymentId = paymentResult.insertId;
 
       // 2️⃣ Provisionssätze definieren
-      const commissionRates = [0.15, 0.05, 0.04, 0.03, 0.02, 0.01, 0.01]; // Level 0 (eigene Provision) bis Level 6
+      const commissionRates = [0.15, 0.05, 0.04, 0.03, 0.02, 0.01, 0.01]; // Level 0 bis Level 6
       for (let i = 7; i <= 16; i++) {
         commissionRates[i] = 0.01; // Level 7–16 bleibt 1%
       }
 
       // 3️⃣ Partner-Stammbaum ermitteln & Provisionen berechnen
-      let currentPartner = partnerId;
-      let level = 0; // Start mit Level 0 für eigenen Verdienst
+      // Starte den Loop **nur**, wenn es einen Sponsor gibt
+      if (sponsor_id) {
+        let currentPartner = sponsor_id; // Verwende den Sponsor als Startpunkt
+        let level = 0; // Level 0 für den direkten Sponsor
 
-      while (currentPartner && level <= 16) {
-        // Provisionssatz auswählen (ab Level 7 immer 1%)
-        const rate = commissionRates[level] || 0.01;
-        const commissionAmount = amount * rate;
+        while (currentPartner && level <= 16) {
+          const rate = commissionRates[level] || 0.01;
+          const commissionAmount = amountPaid * rate; // amountPaid muss vorher definiert sein
 
-        // Provision speichern (damit auch der erste Partner seine eigene Provision erhält)
-        await db.execute(
-          "INSERT INTO commissions (payment_id, partner_id, level, commission_amount, payout_status) VALUES (?, ?, ?, ?, 0)",
-          [paymentId, currentPartner, level, commissionAmount]
-        );
+          // Provision speichern
+          await db.execute(
+            "INSERT INTO commissions (payment_id, partner_id, level, commission_amount, payout_status) VALUES (?, ?, ?, ?, 0)",
+            [paymentId, currentPartner, level, commissionAmount]
+          );
 
-        console.log(`💰 Provision für Partner ${currentPartner} auf Level ${level}: ${commissionAmount} €`);
+          console.log(`💰 Provision für Partner ${currentPartner} auf Level ${level}: ${commissionAmount} €`);
 
-        // Nächste Ebene hoch (falls vorhanden)
-        const [sponsor] = await db.query("SELECT sponsor_id FROM partners WHERE id = ?", [currentPartner]);
+          // Hole den Sponsor des aktuellen Partners (nächste Ebene)
+          const [sponsorResult] = await db.query("SELECT sponsor_id FROM partners WHERE id = ?", [currentPartner]);
 
-        if (sponsor.length === 0 || !sponsor[0].sponsor_id) break;
+          if (sponsorResult.length === 0 || !sponsorResult[0].sponsor_id) break;
 
-        currentPartner = sponsor[0].sponsor_id;
-        level++;
+          currentPartner = sponsorResult[0].sponsor_id;
+          level++;
+        }
+      } else {
+        console.log("Kein Sponsor vorhanden – keine Provision wird ausgezahlt.");
       }
 
       const [latestOrder] = await db.query('SELECT MAX(order_number) AS max_order FROM orders');
@@ -978,12 +1619,32 @@ router.get('/payment-success', async (req, res) => {
         [partnerId, amountPaid, 'paid', nextOrderNumber, 'Lizenzgebühr']
       );
 
-      const [adminRole] = await db.execute(
-        'SELECT role FROM admin_roles WHERE partnerId = ?',
-        [req.session.userId]
-      );
+      const orderForInvoice = {
+        order_number: nextOrderNumber,
+        partner_id: partnerId,
+        amount: amountPaid,
+        product: 'Partnerlizenz',
+        created_at: new Date(), // Alternativ das tatsächliche Datum aus der DB verwenden
+        email: email
+      };
 
-      const userRole = adminRole.length ? adminRole[0].role : 'partner';
+      if (orderForInvoice.product === 'Partnerlizenz') {
+        generateInvoiceAndSendEmail(orderForInvoice);
+      }
+
+      let userRole = 'partner';
+      if (req.session?.userId) {
+        const [adminRole] = await db.execute(
+          'SELECT role FROM admin_roles WHERE partnerId = ?',
+          [req.session.userId]
+        );
+        if (adminRole && adminRole.length > 0) {
+          userRole = adminRole[0].role;
+        }
+      } else {
+        console.warn('Keine Session userId vorhanden, Standardrolle "partner" wird verwendet.');
+      }
+
 
       // Erfolgsseite rendern
       res.render('pages/payment-success', {
@@ -1003,21 +1664,125 @@ router.get('/payment-success', async (req, res) => {
 });
 
 // 8. Zahlung abgebrochen
-router.get('/payment-cancel', (req, res) => {
+router.get('/payment-cancel', async (req, res) => {
+  try {
+    // Hole die Admin-Rolle des Nutzers
+    const [adminRole] = await db.execute(
+      'SELECT role FROM admin_roles WHERE partnerId = ?',
+      [req.session.userId]
+    );
 
-  const [adminRole] = db.execute(
-    'SELECT role FROM admin_roles WHERE partnerId = ?',
-    [req.session.userId]
-  );
+    const userRole = adminRole.length ? adminRole[0].role : 'partner';
 
-  const userRole = adminRole.length ? adminRole[0].role : 'partner';
+    // Setze die Werte für den fehlgeschlagenen Zahlungseintrag
+    const email = req.user ? req.user.email : 'unbekannt';
+    const partnerId = req.session.userId || null;
+    const amount = 0.00; // Falls der Betrag nicht verfügbar ist, setze ihn auf 0
+    const paymentStatus = 'failed';
+    const commissionPayout = 0;
+    const commissionPayouts = 0;
 
-  res.render('pages/payment-cancel', {
-    headerTitle: 'Zahlung abgebrochen',
-    login_user: req.user || 'Gast',
-    userRole,
-    currentUrl: req.url,
-  });
+    // Füge die fehlgeschlagene Zahlung in die Datenbank ein
+    await db.execute(
+      `INSERT INTO payments (email, partner_id, amount, payment_status, created_at, commission_payout, commission_payouts) 
+       VALUES (?, ?, ?, ?, NOW(), ?, ?)`,
+      [email, partnerId, amount, paymentStatus, commissionPayout, commissionPayouts]
+    );
+
+    res.render('pages/payment-cancel', {
+      headerTitle: 'Zahlung abgebrochen',
+      login_user: req.user || 'Gast',
+      userRole,
+      currentUrl: req.url,
+    });
+  } catch (error) {
+    console.error('Fehler beim Einfügen der fehlgeschlagenen Zahlung:', error);
+    res.status(500).send('Ein Fehler ist aufgetreten');
+  }
+});
+
+
+
+
+//Chart
+router.get('/api/chart-data', async (req, res) => {
+  try {
+    const { timeframe } = req.query;
+    let query = "";
+    let queryParams = [req.session.userId];
+
+    if (timeframe === 'daily') {
+      const dateExpr = "DATE(created_at)";
+      query = `
+        SELECT 
+          ${dateExpr} AS payment_date,
+          COUNT(CASE WHEN payment_status = 'success' THEN 1 END) AS successfulPayments,
+          COUNT(CASE WHEN payment_status = 'failed' THEN 1 END) AS failedPayments,
+          0 AS completedOrders,
+          0 AS pendingOrders
+        FROM payments
+        WHERE partner_id = ? AND ${dateExpr} = CURDATE()
+        GROUP BY ${dateExpr}
+        ORDER BY payment_date ASC;
+      `;
+    } else if (timeframe === 'weekly') {
+      const dateExpr = "DATE(created_at)";
+      query = `
+        SELECT 
+          ${dateExpr} AS payment_date,
+          COUNT(CASE WHEN payment_status = 'success' THEN 1 END) AS successfulPayments,
+          COUNT(CASE WHEN payment_status = 'failed' THEN 1 END) AS failedPayments,
+          0 AS completedOrders,
+          0 AS pendingOrders
+        FROM payments
+        WHERE partner_id = ? AND YEARWEEK(${dateExpr}, 1) = YEARWEEK(CURDATE(), 1)
+        GROUP BY ${dateExpr}
+        ORDER BY payment_date ASC;
+      `;
+    } else if (timeframe === 'monthly') {
+      const monthExpr = "DATE_FORMAT(created_at, '%Y-%m')";
+      query = `
+        SELECT 
+          ${monthExpr} AS payment_date,
+          SUM(amount) AS successfulPayments,
+          0 AS failedPayments,
+          0 AS completedOrders,
+          0 AS pendingOrders
+        FROM payments
+        WHERE partner_id = ? AND payment_status = 'success'
+        GROUP BY ${monthExpr}
+        ORDER BY STR_TO_DATE(payment_date, '%Y-%m') ASC;
+      `;
+    } else {
+      // Default: monatlich
+      const monthExpr = "DATE_FORMAT(created_at, '%Y-%m')";
+      query = `
+        SELECT 
+          ${monthExpr} AS payment_date,
+          SUM(amount) AS successfulPayments,
+          0 AS failedPayments,
+          0 AS completedOrders,
+          0 AS pendingOrders
+        FROM payments
+        WHERE partner_id = ? AND payment_status = 'success'
+        GROUP BY ${monthExpr}
+        ORDER BY STR_TO_DATE(payment_date, '%Y-%m') ASC;
+      `;
+    }
+
+    const [chartData] = await db.query(query, queryParams);
+
+    res.json({
+      labels: chartData.map(row => row.payment_date),
+      successfulPayments: chartData.map(row => parseFloat(row.successfulPayments) || 0),
+      failedPayments: chartData.map(row => parseFloat(row.failedPayments) || 0),
+      completedOrders: chartData.map(row => parseFloat(row.completedOrders) || 0),
+      pendingOrders: chartData.map(row => parseFloat(row.pendingOrders) || 0)
+    });
+  } catch (error) {
+    console.error("Error fetching chart data:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
 });
 
 
@@ -1624,32 +2389,22 @@ router.post('/payout', async (req, res) => {
 
     // Berechnung der offenen Provisionen aus der `commissions`-Tabelle
     const [provisionsResult] = await db.query(`
-            WITH RECURSIVE PartnerTree AS (
-                SELECT id, sponsor_id, 1 AS level
-                FROM partners
-                WHERE id = ?
-
-                UNION ALL
-
-                SELECT p.id, p.sponsor_id, pt.level + 1
-                FROM partners p
-                INNER JOIN PartnerTree pt ON p.sponsor_id = pt.id
-                WHERE pt.level < 16
-            )
-            SELECT 
-                pt.level,
-                SUM(c.commission_amount) AS totalProvision
-            FROM PartnerTree pt
-            INNER JOIN commissions c ON pt.id = c.partner_id
-            WHERE c.payout_status = 0
-            GROUP BY pt.level
-            ORDER BY pt.level;
+          SELECT IFNULL(SUM(commission_amount), 0) AS totalProvision
+          FROM commissions        
+          WHERE partner_id = ? AND payout_status = 0        
+          GROUP BY partner_id;
         `, [userId]);
 
     const totalProvision = provisionsResult.reduce((sum, row) => sum + parseFloat(row.totalProvision || 0), 0);
 
     if (totalProvision <= 0) {
-      return res.status(400).json({ message: 'Keine verfügbaren Provisionen zur Auszahlung.' });
+      return res.status(400).json({
+        alert: `
+          <div class="alert alert-danger" role="alert">
+            Keine verfügbaren Provisionen zur Auszahlung.
+          </div>
+        `
+      });
     }
 
     console.log('Berechnete Provision:', totalProvision);
@@ -1678,7 +2433,13 @@ router.post('/payout', async (req, res) => {
 
     console.log('Aktualisierte Zeilen:', result.affectedRows);
 
-    res.json({ message: `Auszahlung in Höhe von ${totalProvision.toFixed(2)} € erfolgreich beantragt.` });
+    res.status(200).json({
+      alert: `
+        <div class="alert alert-success" role="alert">
+          Auszahlung in Höhe von ${totalProvision.toFixed(2)} € erfolgreich beantragt.
+        </div>
+      `
+    });
 
   } catch (error) {
     console.error('❌ Fehler beim Beantragen der Auszahlung:', error.message);
@@ -2361,14 +3122,17 @@ router.get('/profile', async (req, res) => {
   try {
     const userId = req.session.userId;
 
-    // 1️⃣ Benutzerdaten abrufen
+    // 1️⃣ Benutzerdaten (inklusive Stammdaten und Bankdaten) abrufen
     const [userData] = await db.query(`
-            SELECT p.id, p.username, p.name, p.email, p.country, p.created_at,
-                   s.firmenname, s.rechtsform, s.umsatzsteuer_id, s.strasse_hausnummer, s.plz, s.ort
-            FROM partners p
-            LEFT JOIN stammdaten s ON p.id = s.partner_id
-            WHERE p.id = ?
-        `, [userId]);
+      SELECT 
+        p.id, p.username, p.name, p.email, p.country, p.created_at,
+        s.firmenname, s.rechtsform, s.umsatzsteuer_id, s.strasse_hausnummer, s.plz, s.ort,
+        c.iban, c.swift_code
+      FROM partners p
+      LEFT JOIN stammdaten s ON p.id = s.partner_id
+      LEFT JOIN cards c ON p.id = c.partner_id
+      WHERE p.id = ?
+    `, [userId]);
 
     if (userData.length === 0) {
       return res.redirect('/login');
@@ -2377,14 +3141,17 @@ router.get('/profile', async (req, res) => {
     const user = userData[0];
 
     // 2️⃣ Benutzerrolle abrufen
-    const [roleData] = await db.query(`SELECT role FROM admin_roles WHERE partnerId = ?`, [userId]);
+    const [roleData] = await db.query(
+      `SELECT role FROM admin_roles WHERE partnerId = ?`, 
+      [userId]
+    );
     const userRole = roleData.length > 0 ? roleData[0].role : 'partner';
 
-    // 3️⃣ Profil-Seite rendern
+    // 3️⃣ Profil-Seite rendern – das user-Objekt enthält nun auch IBAN und SWIFT
     res.render('pages/profile', {
       layout: 'layouts/layout',
       headerTitle: 'Profil',
-      user,
+      user,         // user beinhaltet nun alle Daten inklusive bank.iban und bank.swift_code
       userRole,
       login_user: user,
       currentUrl: req.url
@@ -2396,27 +3163,38 @@ router.get('/profile', async (req, res) => {
   }
 });
 
-// 🔹 Profil aktualisieren
 router.post('/profile/update', async (req, res) => {
   try {
     const userId = req.session.userId;
-    const { name, email, firmenname, strasse, plz, ort } = req.body;
+    // Zusätzlich zu den bisherigen Feldern werden hier IBAN und SWIFT erwartet
+    const { name, email, firmenname, strasse, plz, ort, iban, swift_code } = req.body;
 
     // 1️⃣ Partner-Tabelle aktualisieren
     await db.query(`
-            UPDATE partners SET name = ?, email = ? WHERE id = ?
-        `, [name, email, userId]);
+      UPDATE partners SET name = ?, email = ? WHERE id = ?
+    `, [name, email, userId]);
 
-    // 2️⃣ Stammdaten aktualisieren
+    // 2️⃣ Stammdaten aktualisieren (INSERT mit ON DUPLICATE KEY)
     await db.query(`
-            INSERT INTO stammdaten (partner_id, firmenname, strasse_hausnummer, plz, ort)
-            VALUES (?, ?, ?, ?, ?)
-            ON DUPLICATE KEY UPDATE firmenname = VALUES(firmenname), strasse_hausnummer = VALUES(strasse_hausnummer),
-                                    plz = VALUES(plz), ort = VALUES(ort)
-        `, [userId, firmenname, strasse, plz, ort]);
+      INSERT INTO stammdaten (partner_id, firmenname, strasse_hausnummer, plz, ort)
+      VALUES (?, ?, ?, ?, ?)
+      ON DUPLICATE KEY UPDATE 
+        firmenname = VALUES(firmenname), 
+        strasse_hausnummer = VALUES(strasse_hausnummer),
+        plz = VALUES(plz), 
+        ort = VALUES(ort)
+    `, [userId, firmenname, strasse, plz, ort]);
+
+    // 3️⃣ Bankdaten (Cards) aktualisieren (INSERT mit ON DUPLICATE KEY)
+    await db.query(`
+      INSERT INTO cards (partner_id, iban, swift_code)
+      VALUES (?, ?, ?)
+      ON DUPLICATE KEY UPDATE 
+        iban = VALUES(iban),
+        swift_code = VALUES(swift_code)
+    `, [userId, iban, swift_code]);
 
     res.json({ success: true, message: "✅ Profil erfolgreich aktualisiert!" });
-
   } catch (error) {
     console.error("❌ Fehler beim Aktualisieren des Profils:", error);
     res.status(500).json({ success: false, message: "❌ Fehler beim Speichern der Daten." });

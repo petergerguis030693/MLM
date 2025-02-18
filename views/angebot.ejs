@@ -1,0 +1,30 @@
+
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Angebot unterschreiben</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/signature_pad/4.0.0/signature_pad.umd.min.js"></script>
+    <style>
+        body { text-align: center; font-family: Arial, sans-serif; }
+        iframe { width: 90%; height: 500px; border: none; }
+        .signature-box { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 20px; border: 2px solid black; }
+    </style>
+</head>
+<body>
+    <h2>Bitte unterschreiben Sie das Angebot:</h2>
+    <iframe src="<%= pdfPath %>"></iframe>
+    <br><br>
+    <button onclick="openSignatureBox()">Unterschreiben</button>
+    <div class="signature-box" id="signature-box">
+        <canvas id="signature-pad" width="300" height="150"></canvas>
+        <br>
+        <button onclick="clearSignature()">Löschen</button>
+        <button onclick="saveSignature()">Speichern</button>
+    </div>
+    <script>
+        function openSignatureBox() { document.getElementById('signature-box').style.display = 'block'; }
+    </script>
+</body>
+</html>

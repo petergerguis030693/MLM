@@ -79,26 +79,11 @@ const DashboardController = async (req, res) => {
     `);
 
     const [provisionsResult] = await db.query(`
-          WITH RECURSIVE PartnerTree AS (
-            SELECT id, sponsor_id, 1 AS level
-            FROM partners
-            WHERE id = ?
-
-            UNION ALL
-
-            SELECT p.id, p.sponsor_id, pt.level + 1
-            FROM partners p
-            INNER JOIN PartnerTree pt ON p.sponsor_id = pt.id
-            WHERE pt.level < 16
-          )
-          SELECT 
-            pt.level,
-            SUM(c.commission_amount) AS totalProvision
-          FROM PartnerTree pt
-          INNER JOIN commissions c ON pt.id = c.partner_id
-          WHERE c.payout_status = 0
-          GROUP BY pt.level
-          ORDER BY pt.level;
+      SELECT level, IFNULL(SUM(commission_amount), 0) AS totalProvision 
+      FROM commissions 
+      WHERE partner_id = ? AND payout_status = 0 
+      GROUP BY level
+      ORDER BY level
     `, [userId]);
 
     const provisions = provisionsResult.map(row => ({
@@ -130,18 +115,32 @@ const DashboardController = async (req, res) => {
 
     const [statistics] = await db.query(`
       SELECT 
-        COUNT(*) AS totalProjects,
-        SUM(CASE WHEN payment_status = 'success' THEN 1 ELSE 0 END) AS onGoing,
-        SUM(CASE WHEN payment_status = 'failed' THEN 1 ELSE 0 END) AS unfinished
-      FROM payments
-      WHERE partner_id = ?;
-    `, [userId]);
+        -- Gesamtanzahl der Bestellungen des Partners
+        (SELECT COUNT(*) FROM orders WHERE partner_id = ?) AS totalOrders,
+        
+        -- Anzahl der erfolgreichen Zahlungen des Partners
+        (SELECT COUNT(*) FROM payments WHERE partner_id = ? AND payment_status = 'success') AS successfulPayments,
+        
+        -- Anzahl der fehlgeschlagenen Zahlungen des Partners
+        (SELECT COUNT(*) FROM payments WHERE partner_id = ? AND payment_status = 'failed') AS failedPayments,
+    
+        -- Anzahl der offenen Bestellungen (die noch nicht bezahlt oder versendet wurden)
+        (SELECT COUNT(*) FROM orders WHERE partner_id = ? AND status = 'pending') AS pendingOrders,
+    
+        -- Anzahl der abgeschlossenen Bestellungen
+        (SELECT COUNT(*) FROM orders WHERE partner_id = ? AND status = 'completed') AS completedOrders;
+    `, [userId, userId, userId, userId, userId]);
 
-    const totalProjects = statistics[0].totalProjects || 0;
-    const onGoing = statistics[0].onGoing || 0;
-    const unfinished = statistics[0].unfinished || 0;
+    // Werte aus dem Resultat holen
+    const totalOrders = statistics[0].totalOrders || 0;
+    const successfulPayments = statistics[0].successfulPayments || 0;
+    const failedPayments = statistics[0].failedPayments || 0;
+    const pendingOrders = statistics[0].pendingOrders || 0;
+    const completedOrders = statistics[0].completedOrders || 0;
 
-    const completedPercentage = totalProjects > 0 ? ((onGoing / totalProjects) * 100).toFixed(2) : 0;
+    // Erfolgreiche Zahlungen als Prozentwert berechnen
+    const successRate = totalOrders > 0 ? ((successfulPayments / totalOrders) * 100).toFixed(2) : 0;
+    const failedRate = totalOrders > 0 ? ((failedPayments / totalOrders) * 100).toFixed(2) : 0;
 
     const [tasks] = await db.query(`
       SELECT tasks.*, customers.name AS customer_name 
@@ -186,10 +185,14 @@ const DashboardController = async (req, res) => {
       totalRevenue: totalRevenue.toFixed(2),
       targetRevenue: targetRevenue.toFixed(2),
       progress, // Fortschritt in Prozent
-      totalProjects,
-      onGoing,
-      unfinished,
-      completedPercentage,
+      //totalProjects,
+      totalOrders,
+      successfulPayments,
+      failedPayments,
+      pendingOrders,
+      completedOrders,
+      successRate,
+      failedRate,
       tasks,
       userRole,
       currentUrl: req.url,
